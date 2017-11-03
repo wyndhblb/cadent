@@ -1,0 +1,10 @@
+Source: cadent
+Priority: optional
+Maintainer: Bo Blanton <bo.blanton@gmail.com>
+Standards-Version: 3.9.3
+Build-Depends: debhelper (>= 8.0.0)
+
+Package: cadent
+Section: MFP
+Architecture: amd64 i386
+Description: Metrics collector

@@ -1,0 +1,97 @@
+//go:generate  protoc --proto_path=../../../../cadent/vendor/:./:../../../../ --gogofaster_out=.  indexer.proto
+
+/* XXX: MUST EDIT GENERATED (boblanton) :: `omitempty` json REMOVED from MetricFindItem fields (leaf, expandable, id, path, text)
+
+type MetricFindItem struct {
+	Text          string      `protobuf:"bytes,1,opt,name=text,proto3" json:"text" msg:"text"`
+	Expandable    uint32      `protobuf:"varint,2,opt,name=expandable,proto3" json:"expandable" msg:"expandable"`
+	Leaf          uint32      `protobuf:"varint,3,opt,name=leaf,proto3" json:"leaf" msg:"leaf"`
+	Path          string      `protobuf:"bytes,4,opt,name=path,proto3" json:"path" msg:"path"`
+	AllowChildren uint32      `protobuf:"varint,5,opt,name=allowChildren,proto3" json:"allowChildren" msg:"allowChildren"`
+	Id            string      `protobuf:"bytes,6,opt,name=id,proto3" json:"id" msg:"id"`
+	UniqueId      string      `protobuf:"bytes,7,opt,name=uniqueId,json=uniqueid,proto3" json:"uniqueid"  msg:"uniqueid"`
+	Tags          []*repr.Tag `protobuf:"bytes,13,rep,name=tags" json:"tags,omitempty" msg:"tags"`
+	MetaTags      []*repr.Tag `protobuf:"bytes,14,rep,name=metaTags,json=meta_tags" json:"meta_tags,omitempty" msg:"meta_tags"`
+}
+
+type MetricFindItemList struct {
+	Items []*MetricFindItem `protobuf:"bytes,1,rep,name=items" json:"items,omitempty" msg:"items"`
+}
+
+type MetricExpandItem struct {
+	Results []string `protobuf:"bytes,2,rep,name=results" json:"results,omitempty" msg:"results"`
+}
+
+type MetricTagItem struct {
+	Id     string `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"  msg:"id"`
+	Name   string `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"  msg:"name"`
+	Value  string `protobuf:"bytes,4,opt,name=value,proto3" json:"value,omitempty"  msg:"value"`
+	IsMeta bool   `protobuf:"varint,5,opt,name=isMeta,json=is_meta,proto3" json:"is_meta,omitempty"  msg:"is_meta"`
+}
+
+type MetricTagItemList struct {
+	Items []*MetricTagItem `protobuf:"bytes,1,rep,name=items" json:"items,omitempty" msg:"items"`
+}
+
+*/
+
+// note this is not a gogofaster as we need maps properly
+
+// also need to generate the msgpack from the rendered result
+// msgp -o indexer_msgp.go --file indexer.pb.go
+// msgp -o indexer_list_msgp.go --file indexer.go
+//go:generate easyjson -all indexer.pb.go
+//go:generate easyjson -all indexer.go
+
+// ALSO rememeber to add the msg:"lowercasejsonnames" to the generate objects.pb.go
+
+syntax = 'proto3';
+
+package indexer;
+
+import "cadent/server/schemas/repr/repr.proto";
+import "github.com/gogo/protobuf/gogoproto/gogo.proto";
+
+option (gogoproto.goproto_getters_all) = false;
+option (gogoproto.benchgen_all) = true;
+option (gogoproto.unmarshaler_all) = true;
+option (gogoproto.marshaler_all) = true;
+option (gogoproto.sizer_all) = true;
+option (gogoproto.populate_all) = true;
+
+
+// MetricFindItem the basic metric json blob for find
+message MetricFindItem {
+	string text  = 1 [ json_name = "text" ];
+	uint32 expandable = 2 [ json_name = "expandable" ];
+	uint32 leaf = 3 [ json_name = "leaf" ];
+	string path = 4 [ json_name = "path" ];
+	uint32 allowChildren = 5 [ json_name = "allowChildren" ];
+	string id = 6 [ json_name = "id" ];
+	string uniqueId = 7 [ json_name = "uniqueid" ];
+	repeated repr.Tag tags = 13 [ json_name = "tags" ];
+	repeated repr.Tag metaTags = 14 [ json_name = "meta_tags" ];
+}
+
+// MetricFindItemList list of MetricFindItem
+message MetricFindItemList {
+	repeated MetricFindItem items = 1 [ json_name = "items" ];
+}
+
+// MetricExpandItem list of strings
+message MetricExpandItem {
+	repeated string results = 2 [ json_name = "results" ];
+}
+
+// MetricTagItem a tag
+message MetricTagItem {
+	string id = 2; // string here as it's not known realy what the "xref type" key might be for a backend
+	string name = 3;
+	string value = 4;
+	bool isMeta = 5 [ json_name = "is_meta" ];
+}
+
+// MetricTagItemList list of TagsItems
+message MetricTagItemList {
+	repeated MetricTagItem items = 1 [ json_name = "items" ];
+}

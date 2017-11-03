@@ -1,0 +1,54 @@
+
+#############################
+## System things
+#############################
+
+[system]
+
+## PID file to check if things is running already
+pid_file="/tmp/cadent-echo.pid"
+
+## performance tuning suggest that n - 2 is best to avoid over creation
+## of File Descriptors for the many sockets we need (and thus cause more OS
+## overhead as time goes on)
+
+num_procs=1
+
+#############################
+## Profiling
+#############################
+
+[profile]
+## Turn on CPU/Mem profiling
+enabled=true
+
+##  there will be a http server set up to yank pprof data on :6060
+
+listen="0.0.0.0:6060"
+rate=100000
+block_profile=false # this is very expensive
+
+
+
+#############################
+## SERVERS
+#############################
+[servers]
+
+[servers.default]
+
+stats_tick=false
+
+## cache keys/server pairs in an LRU mem cache for speed
+cache_items=100000
+
+[servers.graphite]
+listen="tcp://0.0.0.0:0"
+msg_type="graphite"
+out_dev_null=true
+
+[servers.statsd]
+listen="udp://0.0.0.0:8125"
+msg_type="statsd"
+out_dev_null=true
+

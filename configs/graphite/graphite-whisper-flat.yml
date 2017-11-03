@@ -1,0 +1,139 @@
+##
+##  Whisper ONLY writer
+##
+##  a basic "carbon" like config
+##
+##  note the `backend:  "BLACKHOLE"` below, this implies the Lines stop at the writer
+##
+##  cadent --config=graphite.toml --prereg=graphite-whisper.toml
+##
+
+graphite-proxy-map:
+  listen_server: "graphite-proxy" # which listener to sit in front of  (must be in the main config)
+  default_backend: "graphite-proxy"  # failing a match go here
+
+  # pre-reg mappings to ingore, drop, or refarm
+  map:
+    - substring: ".marvel"  # ignore elastic search marvel stuff
+      reject: true
+    - substring: ".monitoring"  # ignore elastic search xpack stuff
+      reject: true
+
+  # accumulators for writing and/or statsd accumulation like entries
+  accumulator:
+    backend:  "BLACKHOLE"
+    input_format:  "graphite"
+    output_format:  "graphite"
+    accumulate_flush:  "5s"
+    random_ticker_start:  false
+
+    # aggregate bin counts
+    times:  ["5s:1h", "1m:168h"]
+
+    # Whisper writer
+    writer:
+
+      # cache objects to be shared (or not) across the writer backends
+      # can have multiple for different writer backends (typically only one is needed)
+      caches:
+       - name: "gorilla"
+         series_encoding: "gorilla"
+         bytes_per_metric: 1024
+         max_metrics: 1024000  # for 1 million points @ 1024 b you'll need lots o ram
+         # max_time_in_cache: "2m" # force a cache flush for metrics in ram longer then this number
+         # broadcast_length: "128" # buffer channel for pushed overflow writes
+         # overflow_method: "drop" # if over bytes/maxmetrics for non-series writers, drop incoming
+         # for non-series metrics, the typical behavior is to flush the highest counts first,
+         # but that may mean lower counts never get written, this value "flips" the sorter at this % rate to
+         # force the "smaller" ones to get written more often
+         low_fruit_rate:  0.10
+
+      metrics:
+        name: "whs-metrics"
+        driver:  "whisper"
+        dsn:  "/tmp/graphite/whisper"
+        cache:  "gorilla"
+
+        options:
+          write_queue_length: 100
+          writes_per_second: 100
+
+
+      # no need to index for whisper style, as it's just "on the file system" globs
+      #  see api.indexer section
+      indexer:
+        name: "level-indexer"
+        driver:  "leveldb"
+        dsn:  "/tmp/graphite/idx"
+
+
+    # Render http APIs
+    api:
+      base_path:  "/graphite/"
+
+      # standard http api
+      listen:  "0.0.0.0:8083"
+
+      # turn on gRCP api head
+      grpc_listen:  "0.0.0.0:8084"
+
+      # for grpc clustering need a "name" that's unique
+      advertise_host:  "localhost:8084"
+
+      # this is the read cache that will keep the latest goods in ram
+      read_cache_total_bytes: 16384000
+      read_cache_max_bytes_per_metric: 16384
+
+      #  TLS the server if desired
+      # key: "/path/to/server.key"
+      # cert: "/path/to/server.crt"
+
+      # tie the API server to these writer names
+      use_metrics: "whs-metrics"
+      use_indexer: "level-indexer"
+
+      # HTTP request tracing for API requests
+      tracing:
+        # zipkin endpoint
+        # zipkin_url: "http://localhost:9411/api/v1/spans"
+        #
+        # OR the lightstep api key
+        # lightstep_key: "XXXX"
+        #
+        # OR the jaeger host:port
+        jaeger_host:  "localhost:6831"
+
+        # name of the server that will be registered inside the end tracer
+
+        name: "cadent-graphite-whisper"
+        # batch size
+        batch_size: 1
+        # Number of samples per second (0: :  all no sampling)
+        samples_per_second: 0.0
+
+      ## DISCOVERY module
+      # Currently in alpha mode, but when the API fires up, it will register itself w/ a discovery
+      # objects, so far only Zookeeper is created.
+      # remove the -xxx if you want it active
+      discover:
+        driver: "zookeeper"
+        dsn: "127.0.0.1:2181"
+
+        options:
+          # if false, don't "register" ourselves, but we can use the modle for reading from the discovery
+          # object
+          register: true
+
+          # Root Zookeeper path for all cadent related ZK activities
+          root_path: "/cadent"
+
+          # sub path for API realated Zookeeper data
+          api_path: "/apihosts"
+
+          # what name to register ourselves under
+          # the default is to use the HostName of the host we are on.
+          # the full path in ZK for a registered object woud be
+          #
+          # {root_path}/{api_path}/{name}
+          #
+          name: "local-1"

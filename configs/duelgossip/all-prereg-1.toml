@@ -1,0 +1,211 @@
+###########################################################################
+## Statsd proxy to graphite
+###########################################################################
+
+[statsd-proxy-map]
+listen_server="statsd" # which listener to sit in front of  (must be in the main config)
+default_backend="graphite"  # failing a match go here
+
+    [statsd-proxy-map.accumulator]
+    backend = "graphite"  # farm to relay
+    input_format = "statsd"
+    output_format = "graphite"
+    accumulate_flush = "1s"
+    options = [
+            ["legacyNamespace", "true"],
+            ["prefixGauge", "gauges"],
+            ["prefixTimer", "timers"],
+            ["prefixCounter", ""],
+            ["globalPrefix", "stats"],
+            ["globalSuffix", ""],
+            ["percentThreshold", "0.90,0.95,0.99"]
+    ]
+
+    # Sub string type match
+    [[statsd-proxy-map.map]]
+    substring=".marvel"  # ignore elastic search marvel stuff
+    reject=true
+
+    [[statsd-proxy-map.map]]
+    regex='''(kafka\.consumer\.FetchRequestAndResponseMetrics.*)|(.*ReplicaFetcherThread.*)|(kafka\.server\.FetcherLagMetrics\..*)|(kafka\.log\.Log\..*)|(kafka\.cluster\.Partition\..*)'''
+    reject=true
+
+###########################################################################
+## Graphite Writer :: to Cassandra
+###########################################################################
+
+[graphite-cassandra]
+listen_server="graphite"
+default_backend="graphite"
+
+    # accumulator and
+    [graphite-cassandra.accumulator]
+    backend = "BLACKHOLE"  # loop back, the code will bypass the accumulator on the second pass
+    input_format = "graphite"
+    output_format = "graphite"
+    accumulate_flush = "1s"  # push out to writer aggregator collector and the backend every 5s
+
+    # bypass the accumulator stage, and go straight to writers
+    bypass=true
+
+    # aggregate bin counts
+    times = ["1s:96h", "10s:720h", "1m:4380h"]
+
+    [graphite-cassandra.accumulator.writer]
+        metric_queue_length=10240
+        indexer_queue_length=10240
+
+        [[graphite-cassandra.accumulator.writer.caches]]
+        name="gorilla"
+        series_encoding="gorilla"
+        bytes_per_metric=1024
+        max_metrics=1024000  # for 1 million points @ 1024 b you'll need lots o ram
+
+        [graphite-cassandra.accumulator.writer.metrics]
+        name="cass-statsd-metrics"
+        driver = "cassandra-log-triggered"
+        dsn = "localhost"
+        cache = "gorilla"
+
+        [graphite-cassandra.accumulator.writer.metrics.options]
+        writer_index=1
+        user="cassandra"
+        pass="cassandra"
+        keyspace="desmetric"
+        metrics_table="metric_series"
+        table_per_resolution=true
+        numcons=32
+        sniff=false # much faster startup
+
+        [graphite-cassandra.accumulator.writer.indexer]
+        name = "cass-statsd-indexer"
+        driver = "cassandra"
+        dsn = "localhost"
+
+        [graphite-cassandra.accumulator.writer.indexer.options]
+            user="cassandra"
+            pass="cassandra"
+            keyspace="desmetric"
+            path_table="path"
+            id_table="ids"
+            writer_index = 1
+            local_index_dir="/tmp/cadent_index_gr1"
+            segment_table="segment"
+            cache_index=1024000  # the "internal carbon-like-cache" size (ram is your friend)
+            numcons=10
+            write_workers=8
+            write_queue_length=1024000
+            writes_per_second=8000
+            sniff=false # much faster startup
+
+
+    [graphite-cassandra.accumulator.api]
+    base_path = "/graphite/"
+    listen = "0.0.0.0:8085"
+    grpc_listen = "0.0.0.0:9089"
+    advertise_host = "localhost:9089"
+    cluster_name = "graphite-cluster"
+
+    use_metrics="cass-statsd-metrics"
+    use_indexer="cass-statsd-indexer"
+
+
+    [[graphite-cassandra.map]]
+    # Sub string type match
+        substring=".marvel"  # ignore elastic search marvel stuff
+        reject=true
+
+###########################################################################
+## Graphite Server Writer :: to Cassandra
+###########################################################################
+
+[graphite-system-cassandra]
+listen_server="graphite-system"
+default_backend="graphite-system"
+
+    # accumulator and
+    [graphite-system-cassandra.accumulator]
+    backend = "BLACKHOLE"  # loop back, the code will bypass the accumulator on the second pass
+    input_format = "graphite"
+    output_format = "graphite"
+    accumulate_flush = "10s"  # push out to writer aggregator collector and the backend every 5s
+
+    # bypass the accumulator stage, and go straight to writers
+    bypass=true
+
+    # aggregate bin counts
+    times = ["10s:1440h"]
+
+    [graphite-system-cassandra.accumulator.writer]
+        metric_queue_length=10240
+        indexer_queue_length=10240
+
+        [[graphite-system-cassandra.accumulator.writer.caches]]
+        name="gorilla"
+        series_encoding="gorilla"
+        bytes_per_metric=1024
+        max_metrics=1024000  # for 1 million points @ 1024 b you'll need lots o ram
+
+        [graphite-system-cassandra.accumulator.writer.metrics]
+        name="cass-system-metrics"
+        driver = "cassandra-log-triggered"
+        dsn = "localhost"
+        cache = "gorilla"
+
+        [graphite-system-cassandra.accumulator.writer.metrics.options]
+        writer_index=1
+        user="cassandra"
+        pass="cassandra"
+        keyspace="desmetric"
+        log_table="metricsyslogs"
+        metrics_table="metric_system"
+        table_per_resolution=true
+        numcons=32
+        sniff=false # much faster startup
+
+        [graphite-system-cassandra.accumulator.writer.indexer]
+        name="cass-system-indexer"
+        driver = "cassandra"
+        dsn = "localhost"
+
+        [graphite-system-cassandra.accumulator.writer.indexer.options]
+            user="cassandra"
+            pass="cassandra"
+            writer_index = 1
+            local_index_dir="/tmp/cadent_index_grs1"
+            keyspace="desmetric"
+            path_table="path_system"
+            id_table="ids_system"
+            metrics_table="metric_system"
+            log_table="metricsyslogs"
+            segment_table="segment_system"
+            cache_index=1024000  # the "internal carbon-like-cache" size (ram is your friend)
+            numcons=10
+            write_workers=8
+            write_queue_length=1024000
+            writes_per_second=8000
+            sniff=false # much faster startup
+
+
+    [graphite-system-cassandra.accumulator.api]
+    base_path = "/graphite/"
+    listen = "0.0.0.0:8086"
+    grpc_listen = "0.0.0.0:9090"
+    advertise_host = "localhost:9090"
+    cluster_name = "graphite-system-cluster"
+    use_metrics="cass-system-metrics"
+    use_indexer="cass-system-indexer"
+
+    # ignore kibana stuff
+    [[graphite-system-cassandra.map]]
+        substring=".marvel"
+        reject=true
+
+    [[graphite-system-cassandra.map]]
+        substring=".monitoring"
+        reject=true
+
+    [[graphite-system-cassandra.map]]
+        substring=".kibana"
+        reject=true
+

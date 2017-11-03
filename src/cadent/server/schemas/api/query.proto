@@ -1,0 +1,84 @@
+//go:generate protoc --proto_path=../../../../cadent/vendor/:./:../../../../ --gogofaster_out=.  query.proto
+//go:generate easyjson -all query.pb.go
+//go:generate msgp -o query_msgp.go --file query.pb.go
+
+// protobuf structure for API queries
+
+// also need to generate the msgpack from the rendered result
+
+syntax = 'proto3';
+
+package api;
+
+import "cadent/server/schemas/repr/repr.proto";
+import "github.com/gogo/protobuf/gogoproto/gogo.proto";
+
+option (gogoproto.goproto_getters_all) = false;
+option (gogoproto.benchgen_all) = true;
+option (gogoproto.unmarshaler_all) = true;
+option (gogoproto.marshaler_all) = true;
+option (gogoproto.sizer_all) = true;
+option (gogoproto.populate_all) = true;
+
+
+// MetricQuery elements for a metric render query
+message MetricQuery{
+	string target = 1 [ json_name = "target" ];
+	int64 start = 2 [ json_name = "start" ];
+	int64 end = 3 [ json_name = "end" ];
+	uint32 step = 4 [ json_name = "step" ];
+	uint32 agg = 5 [ json_name = "agg" ];
+	uint32 maxPoints = 6 [ json_name = "max_points" ];
+	repeated repr.Tag tags = 7 [ json_name = "tags" ];
+	bool inCache = 8 [ json_name = "in_cache" ];
+	string format = 9 [ json_name = "format" ];
+
+}
+
+// IndexQuery elements for a find/index query
+message IndexQuery{
+	string query = 1 [ json_name = "query" ];
+	string value = 2 [ json_name = "value" ];
+	uint32 page = 3 [ json_name = "page" ];
+	repeated repr.Tag tags = 4 [ json_name = "tags" ];
+	bool hasData = 5 [ json_name = "has_data" ];
+	bool inCache = 6 [ json_name = "in_cache" ];
+	string format = 7 [ json_name = "format" ];
+}
+
+
+// DiscoveryQuery elements for a finding nodes in the dosciver module
+message DiscoveryQuery{
+	string host = 1 [ json_name = "host" ];
+	repeated repr.Tag tags = 4 [ json_name = "tags" ];
+	string format = 6 [ json_name = "format" ];
+}
+
+// Resolution definition
+message Resolution{
+	uint32 resolution = 1;
+	uint32 ttl = 2;
+}
+
+// DiscoverHost the discover data
+message DiscoverHost{
+	string advertiseName  = 1 [ json_name = "advertise_name" ];
+	string advertiseUrl = 2 [ json_name = "advertise_url" ];
+	string grpchost = 3 [ json_name = "grpc_host" ];
+	string host = 4 [ json_name = "host" ];
+	string hostApiUrl = 5 [ json_name = "host_api_url" ];
+	int64 startTime = 6 [ json_name = "start_time" ];
+	repeated Resolution resolutions = 7 [ json_name = "resolutions" ];
+	bool isApi = 8 [ json_name = "is_api" ];
+	bool isWriter = 9 [ json_name = "is_writer" ];
+	bool isReader = 10 [ json_name = "is_reader" ];
+	bool isHasher = 11 [ json_name = "is_hasher" ];
+	bool isTCPapi = 12 [ json_name = "is_tcpapi" ];
+	bool isgRPC = 13 [ json_name = "is_grpc" ];
+	repeated repr.Tag tags = 14 [ json_name = "tags" ];
+
+}
+
+message DiscoverHosts {
+	repeated DiscoverHost hosts = 1;
+}

@@ -1,0 +1,58 @@
+
+### pre-regex filters to push things around various backends
+### if there are multiple backends or reject some things
+
+[statsd-regex-map]
+listen_server="statsd-proxy" # which listener to sit in front of  (must be in the main config)
+default_backend="statsd-proxy"  # failing a match go here
+
+    [statsd-regex-map.accumulator]
+    backend = "graphite-relay"  # farm to relay
+    input_format = "statsd"
+    output_format = "graphite"
+    accumulate_flush = "10s"  # since this is going into a graphite ticking at 10s .. they should match
+    random_ticker_start = true  # typically want this to not overwhelm (for statsd)  writer backends with everybody flushing at the same time
+    options = [
+            ["legacyNamespace", "true"],
+            ["prefixGauge", "gauges"],
+            ["prefixTimer", "timers"],
+            ["prefixSets", "sets"],
+            ["prefixCounter", ""],  # legacy namespace
+            ["globalPrefix", "stats"],
+            ["globalSuffix", ""],
+            ["percentThreshold", "0.90,0.95,0.99"]
+    ]
+
+    # don't filter anything really
+    # Sub string type match
+    [[statsd-regex-map.map]]
+    substring=".marvel"  # ignore elastic search marvel stuff
+    reject=true
+
+
+
+     # cache objects to be shared (or not) across the writer backends
+     [[graphite-proxy-map.accumulator.writer.caches]]
+         name="gorilla"
+         series_encoding="gorilla"
+         bytes_per_metric=1024
+         max_metrics=1024000  # for 1 million points @ 1024 b you'll need lots o ram
+         # max_time_in_cache="2m" # force a cache flush for metrics in ram longer then this number
+         # broadcast_length="128" # buffer channel for pushed overflow writes
+         # overflow_method="drop" # if over bytes/maxmetrics for non-series writers, drop incoming
+         # for non-series metrics, the typical behavior is to flush the highest counts first,
+         # but that may mean lower counts never get written, this value "flips" the sorter at this % rate to
+         # force the "smaller" ones to get written more often
+         # low_fruit_rate= 0.10
+
+    [statsd-regex-map.accumulator.writer.metrics]
+        driver = "kafka"
+        dsn = "192.168.99.100:9092"
+        cache = "gorilla"
+        [statsd-regex-map.accumulator.writer.metrics.options]
+        index_topic = "cadent"
+        metric_topic = "cadent"
+
+    [statsd-regex-map.accumulator.writer.indexer]
+        driver = "noop" ## noop indexer writes as we don't need them here
+

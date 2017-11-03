@@ -1,0 +1,84 @@
+##
+##  Cassandra-flat ONLY writer
+##
+##  note the `backend = "BLACKHOLE"` below, this implys the Lines stop at the writer
+##
+##  cadent --config=graphite.toml --prereg=graphite-cassandra-flat.toml
+##
+##
+
+[statsd-proxy-map]
+listen_server="statsd-proxy" # which listener to sit in front of  (must be in the main config)
+default_backend="graphite-proxy"  # failing a match go here
+
+    [statsd-proxy-map.accumulator]
+    backend = "graphite-proxy"
+    input_format = "statsd"
+    output_format = "graphite"
+    random_ticker_start = false
+
+
+[graphite-proxy-map]
+listen_server="graphite-proxy" # which listener to sit in front of  (must be in the main config)
+default_backend="graphite-proxy"  # failing a match go here
+
+    [graphite-proxy-map.accumulator]
+    backend = "BLACKHOLE"
+    input_format = "graphite"
+    output_format = "graphite"
+    accumulate_flush = "1s"
+    random_ticker_start = false
+
+    # aggregate bin counts
+    times = ["1s:24h", "10s:96h", "1m:168h"]
+
+    # cache objects to be shared (or not) across the writer backends
+    [[graphite-proxy-map.accumulator.writer.caches]]
+        name="gorilla"
+        series_encoding="gorilla"
+        bytes_per_metric=1024
+        max_metrics=1024000
+
+    # AND write things to the cassandra DB
+    # cassandra api, metrics writer and path indexer
+    [graphite-proxy-map.accumulator.writer.metrics]
+        name="cass-metrics"
+        driver = "cassandra-flat"
+        dsn = "127.0.0.1:9042"
+        cache = "gorilla"
+        [graphite-proxy-map.accumulator.writer.metrics.options]
+            table_per_resolution = true
+            write_queue_length=100
+            writes_per_second=1000
+            sniff=false
+
+    [graphite-proxy-map.accumulator.writer.indexer]
+        name="cass-indexer"
+        driver = "cassandra"
+        dsn = "127.0.0.1:9042"
+        [graphite-proxy-map.accumulator.writer.indexer.options]
+            # assign things written to by this node as the "master" writer
+            writer_index=1
+            local_index_dir="/tmp/cadent_index"
+            writes_per_second=500
+            sniff=false
+
+    [graphite-proxy-map.accumulator.api]
+        base_path = "/graphite/"
+        listen = "0.0.0.0:8083"
+        # this is the read cache that will keep the latest goods in ram
+        read_cache_total_bytes=16384000
+        read_cache_max_bytes_per_metric=16384
+
+        #  TLS the server if desired
+        # key="/path/to/server.key"
+        # cert="/path/to/server.crt"
+
+        # enable GZIP output compression:
+        # for large request rates (100-200TPS), gzip can cause ALOT of GC, the default is OFF
+        # if your volume is lowish you should enable this, probably should not enable if
+        # you are using msgpack/protobufs as the format for returns
+        enable_gzip = false
+
+        use_metrics="cass-metrics"
+        use_indexer="cass-indexer"

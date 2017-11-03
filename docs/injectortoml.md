@@ -1,0 +1,300 @@
+
+# Injector Configs
+
+This config set up is meant for streaming data from some other non-socket source into a writer backend.  It also will be the API endpoints
+for queries.
+
+Currently only kafka is supported in this mode.  Other AMPQ's may be in the future.
+
+It assumes that another cadent is writing to the kafka topic(s), like the below example.
+
+    ./cadent -config=configs/graphite/graphite-config.toml -prereg=configs/graphite/graphite-kafka-flat.toml
+
+
+An example config
+
+    ##
+    ##  Cassandra-Series ONLY writer fed from kafka.  The kafka config is a bit more compilcated then the
+    ##  not-kakfa ones dues to several factors.  Kafka is meant to let us have resilency over failure, since this is an
+    ##  asyn commit/write world, (a streaming method where writes are not tied to kafka offsets) things need more plumbing.
+    ##
+    ##
+    ##  cadent --injector=kafka-cassandra-series.toml
+    ##
+    ##
+    
+    #############################
+    ## logging
+    #############################
+    [log]
+    # format = ""%{color}%{time:2006-01-02 15:04:05.000} [%{module}] (%{shortfile}) ▶ %{level:.4s} %{color:reset} %{message}""
+    level = "DEBUG"
+    file="stdout"
+    
+    
+    #############################
+    ## System things
+    #############################
+    [system]
+    pid_file="/opt/cadent/api.pid"
+    num_procs=8
+    
+    #############################
+    ## CPU profile
+    #############################
+    [profile]
+    ## Turn on CPU/Mem profiling
+    ##  there will be a http server set up to yank pprof data on :6065
+    enabled=true
+    listen="0.0.0.0:6165"
+    rate=100000
+    block_profile=false # this is very expensive
+    
+    #############################
+    ## Statsd
+    #############################
+    [statsd]
+    server="host.of.statsd.com:8125"
+    prefix="cadent.1"
+    interval=1  # send to statd every second (buffered)
+    
+    # global statsd Sample Rates
+    
+    ## It's HIGHLY recommended you at least put a statsd_timer_sample_rate as we measure
+    ## rates of very fast functions, and it can take _alot_ of CPU cycles just to do that
+    ## unless your server not under much stress 1% is a good number
+    ## `statsd_sample_rate` is for counters
+    ## `statsd_timer_sample_rate` is for timers
+    timer_sample_rate=0.01
+    sample_rate=0.1
+    
+    
+    #############################
+    ## Gossiper
+    #############################
+    [gossip]
+    enabled=true
+    mode="lan"
+    port=8989
+    name="localhost"
+    seed="localhost:9089"
+    
+    
+    #############################
+    ## Internal Health/Stats
+    #############################
+    
+    [health]
+    
+    enabled=true
+    
+    ## there will be an internal health http server set up as well
+    ## and will respond to '/ops/status' -> "GET OK"
+    ## '/stats' --> blob of json data (adding ?jsonp=xxx will return jsonp data)
+    ## '/' --> a little file that charts (poorly) the above stats
+    listen="0.0.0.0:6162"
+    
+    # https this server if desired
+    # key="/tmp/server.key"
+    # cert="/tmp/server.crt"
+    
+    [injector]
+        name="kafka-inject"
+        driver="kafka"
+        dsn="localhost:9092"
+    
+    
+    
+        # aggregate bin counts
+        # using the triggered rollups, kafka assumes only the "lowest" resolution is sent
+        # if the metric comes in with a TTL that is not this one it will be overridden by the value here
+        times = ["1s:20m", "5s:72h", "1m:720h"]
+    
+        # kafka specific options
+        [injector.options]
+            # when a restart happens, where do we start consuming from
+            # this consumer is NOT a rebalence type ('consumer group aware'), parititions are assigned directly
+            # as this is a streaming sort of mechanism
+            # so when we restart we can start at the
+            # newest  .. basically start as if we are new)
+            # oldest .. reprocess the entire queue again
+            # reset .. don't user the commit-log as anything, instead just start from the way back of all kafka time
+            #          (use w/ care CPU cycles will be required for any sort of massive metric load)
+            # time .. (default) .. in kafka 10.1 we can specify a "time back" based on message arival to start from\\
+    
+            starting_offset="reset"
+    
+            # one can specify a "time back in the past" instead of an offset to start from (default 2h) if `starting_offset`="time"
+            # this only works on kafka10 exactly, however, if starting_offset="time" then we will attempt to consume the
+            # commit-log regardless
+    
+            restart_back_time = "2h"
+    
+            # consumer based options
+            #
+            # Size of the incoming channel buffer (i.e. prefetch ahead of acctuall procssing)
+            channel_buffer_size=409600
+    
+            # min number of message to pre-fetch (for fast things, not really relevent)
+            consumer_fetch_min=1
+    
+            # number of bytes to prefetch per request (just grab a lots for this use case)
+            consumer_fetch_default=4096000
+    
+    
+            # topic where raw metrics come in on
+            topic="cadent"
+    
+            # since we are streaming, and typically (or you should) be in a "series" log based nature where commits
+            # to the DB are random based on either a minimum time in ram or size based (or both) the offsets are not
+            # linear and can span very different offsets spots.  This essentially makes the `offset commits` for this topic
+            # totally useless.
+            #
+            # so that we always know the latest time that was "written" for given UniqueID (see the unique ID
+            # documentation) on a restart/node death and resurection we read all this topic has to give first, and start
+            # at the "time" or "oldest" offests (`starting_offset`, if this is `newest`, this is all moot)
+            #
+            # this topic should have the same number of partitions as the main topic (so things align w/ IDs and commits between
+            # the other topic)
+            #
+            # this can be made more kafka efficent by using the "compact" cleanup.policy for this topic
+            # however the system will attempt to scan from `restart_back_time` on this topic as well to grab any commit IDs we care
+            # about
+            #
+            commit_topic="cadent-commits"
+    
+            # the message type of the incoming metrics
+            #
+            # raw -> a simple item {metric: moo.foo.org, time: int64, value: 0.012, tags: [{name: xxx, value:xxx}]}
+            # unprocessed -> {metric: moo.foo.org, time: int64, min: 0.012, max: 0.2, sum: 1.2, count:5, last: 0.4, tags:[{name: xxx, value:xxx}]
+            # single -> {id: uin64, uid: base36(id), metric: moo.foo.org, time: int64, min: 0.012, max: 0.2, sum: 1.2, count:5, last: 0.4, tags:[{name: xxx, value:xxx}]}
+            # any -> an generic "interface object" to all the formats above .. but that comes w/ a cost of not being able to do the
+            #        `commit_topic` properly (due to the fact that there are shifting `mark_written_key`
+            #        so basically pick one (use the `single` if coming from the accumulator writers of cadent itself
+            #
+            #  NOTE: if using `raw` or `unprocessed` then the `mark_written_key` below will be AUTOMATICALLY assigned `metric`
+            #
+            message_type="any"
+    
+            # message encoding in kafka
+            #
+            # DON'T change this mid ship, pick one and stick to it
+            # json, msgpack, protobuf
+            # default is msgpack as it allows the most flexibility with other systems while being performant.
+            encoding="msgpack"
+    
+    
+            # Again since this is a streaming interface of sorts, we have to manually assign paritions to workers
+            # if we don't and a rebalence occurs, we end up w/ an invalid stream state and no way to recover properly
+            # on restarts and crashes (as we're never sure where what partitions we're going to be responsible for)
+            # so we need to force partitions to workers (default is for all partitions to be consumed)
+            consume_partitions="0,1,2,3"
+    
+            # LocalOffset Mark
+            #
+            # most of the time we are doing some rolling restart for things, so when we relaunch we don't want
+            # to have to consume the entire commit-topic each time (which can take some time)
+            # so we maintain a local offset marking DB which will be read in in such cases.
+            # if that reading fails, or is too old, things will revert to the the commit-topic for consumption
+            # this is the directory to put things in, needs to be writable
+            #
+            # set to "none" to disable.  this is a good option if you have properly defined the commit_topic
+            # to be a "compact" topic type, then we use the kafka topic as this key/value store
+            #
+            local_offset_db="none"
+    
+    
+        # cache objects to be shared (or not) across the writer backends
+        [[injector.writer.caches]]
+            name="gorilla"
+            series_encoding="gorilla"
+            bytes_per_metric=128
+            max_metrics=1024000  # for 1 million points @ 1024 b you'll need lots o ram
+            historical_chunks= 4 # keep 4 previously written series chunks in cache for reading
+    
+    
+        # AND write things to the cassandra DB
+        # cassandra api, metrics writer and path indexer
+        [injector.writer.metrics]
+            name="cass-metrics"
+            driver = "cassandra-triggered"
+            dsn = "127.0.0.1"
+            cache="gorilla"
+            [injector.writer.metrics.options]
+                port=9042
+                table_per_resolution=true
+                keyspace="metric"
+                metrics_table="metric_series"
+                write_queue_length=100
+                writes_per_second=500
+                sniff=false  #  use in local dev
+                # there is no need to do this in a kafka world, as this can be very time consuming for
+                # alot of metrics, but kafka has our last commits and data so we can simply just exit
+                shutdown_purge = false
+    
+    
+        [injector.writer.indexer]
+            name="cass-indexer"
+            driver = "cassandra"
+            dsn = "127.0.0.1"
+            [injector.writer.indexer.options]
+                # assign things written to by this node as the "master" writer
+                # if you have multiple writers you'll need to have UNIQUE ids for them
+                writer_index=1
+                local_index_dir="/tmp/cadent_index"
+                writes_per_second=100
+                port=9042
+                table_per_resolution=true
+                keyspace="metric"
+                path_table="path"
+                segment_table="segment"
+                sniff=false  #  use in local dev
+    
+        [injector.api]
+            base_path = "/graphite/"
+            listen = "0.0.0.0:8084"
+            grpc_listen = "0.0.0.0:8892"
+    
+            # set this to let the RPC clients in cluster know which in the host is the "local" node
+            # so we can optimize local requests, cadent will attempt to figure this out, but as we all know
+            # based on binds and hostnames of the external vs internal and multi-net interfaces setting it
+            # can avoid confusion.  If it's not set things will simply loop back to the grpc interface (even if its
+            # the same server)
+            advertise_host = "localhost:8892"
+    
+            # since we can have multiple API layers for different backends and types, to distinguish them from each
+            # other when we are joining a cluster, we need to know the grouping of them as there is but one
+            # gossip protocal in action, but it can broadcast multiple api endpoints
+            cluster_name = "kafka_writer"
+    
+            # one can use a fixed list of hosts if desired, it's better to let the gossip
+            # configure hosts as they go in and out
+            # cadent_hosts = ["localhost:8891", "localhost:8892"]
+    
+            # enable GZIP output compression:
+            # for large request rates (100-200TPS), gzip can cause ALOT of GC, the default is OFF
+            # if your volume is lowish you should enable this, probably should not enable if
+            # you are using msgpack/protobufs as the format for returns
+            enable_gzip = false
+    
+            # TLS the server if desired
+            # key="/path/to/server.key"
+            # cert="/path/to/server.crt"
+            
+            # the writers above to hook into for the API calls
+            use_metrics="cass-metrics"
+            use_indexer="cass-indexer"
+            
+            # Opentracing for APIs
+            [injector.api.tracing]
+                # zipkin endpoint
+                zipkin_url="http://localhost:9411/api/v1/spans"
+                
+                # name of the server that will be registered inside zipkin
+                name="cadent-kafka-cassandra"
+                
+                # batch size
+                batch_size=1
+                
+                # Number of samples per second (0 == all no sampling, don't do this in production)
+                samples_per_second=0.0

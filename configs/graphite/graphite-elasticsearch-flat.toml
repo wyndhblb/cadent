@@ -1,0 +1,81 @@
+##
+##  ElasticSearch-flat ONLY writer
+##
+##  note the `backend = "BLACKHOLE"` below, this implys the Lines stop at the writer
+##
+##  cadent --config=graphite.toml --prereg=graphite-elastisearch-flat.toml
+##
+##
+
+[graphite-proxy-map]
+listen_server="graphite-proxy" # which listener to sit in front of  (must be in the main config)
+default_backend="graphite-proxy"  # failing a match go here
+
+    [graphite-proxy-map.accumulator]
+    backend = "BLACKHOLE"  # loop back, the code will bypass the accumulator on the second pass
+    input_format = "graphite"
+    output_format = "graphite"
+    accumulate_flush = "5s"
+    random_ticker_start = false
+
+    # aggregate bin counts
+    times = ["5s:1h", "1m:168h"]
+
+    # cache objects to be shared (or not) across the writer backends
+    # note: for ES this is not yet used, but needed for any future things
+    [[graphite-proxy-map.accumulator.writer.caches]]
+    name="gob"
+    series_encoding="gob"
+    bytes_per_metric=1024
+    max_metrics=1024000
+    low_fruit_rate= 0.25
+
+
+    # write to elastic search in 1000 metric batches
+    [graphite-proxy-map.accumulator.writer.metrics]
+        name = "es-metrics"
+        driver = "elasticsearch-flat"
+        dsn = "http://127.0.0.1:9200"
+        cache = "gob"
+
+        # since this writer can get really backedup on huge loads (ESes indexing fault)
+        # we really need to limit things and start to drop otherwise, things will spiral to death
+        input_queue_length = 10024
+
+        [graphite-proxy-map.accumulator.writer.metrics.options]
+        batch_count=10000
+        metric_index = "metrics_flat"
+        sniff=false
+        # hourly, daily, weekly, monthly, none (default)
+        #
+        # hourly {datestr} -> YYYY-MM-DD-HH
+        # daily {datestr} -> YYYY-MM-DD
+        # weelky (datestr} -> YYYY-WW
+        # monthly {datestr} -> YYYY-MM
+        #
+        index_by_date="hourly"
+        enable_traceing=false
+
+    [graphite-proxy-map.accumulator.writer.indexer]
+        name = "es-indexer"
+        driver = "elasticsearch"
+        dsn = "http://127.0.0.1:9200"
+        [graphite-proxy-map.accumulator.writer.indexer.options]
+            # assign things written to by this node as the "master" writer
+            # if you have multiple writers you'll need to have UNIQUE ids for them
+            writer_index=1
+            local_index_dir="/tmp/cadent_index"
+            writes_per_second=500
+            max_results=1024 # max number of things we can return in a "find"
+            sniff=false
+
+
+    [graphite-proxy-map.accumulator.api]
+        base_path = "/graphite/"
+        listen = "0.0.0.0:8083"
+        # this is the read cache that will keep the latest goods in ram
+        read_cache_total_bytes=16384000
+        read_cache_max_bytes_per_metric=16384
+
+        use_metrics="es-metrics"
+        use_indexer="es-indexer"

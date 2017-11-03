@@ -1,0 +1,278 @@
+#############################
+## System stuff
+#############################
+[system]
+## PID file to check if things is running already
+pid_file="/opt/cadent/all.pid"
+num_procs=2
+
+
+#############################
+## Statsd
+#############################
+[statsd]
+
+## fire out some internal to statsd if desired
+server="localhost:8125"
+prefix="cadent"
+interval=1  # send to statd every second (buffered)
+
+# global statsd Sample Rates
+
+## It's HIGHLY recommended you at least put a statsd_timer_sample_rate as we measure
+## rates of very fast functions, and it can take _alot_ of CPU cycles just to do that
+## unless your server not under much stress 1% is a good number
+## `statsd_sample_rate` is for counters
+## `statsd_timer_sample_rate` is for timers
+timer_sample_rate=0.01
+sample_rate=0.1
+
+
+#############################
+## logging
+#############################
+[log]
+# format = ""%{color}%{time:2006-01-02 15:04:05.000} [%{module}] (%{shortfile})  %{level:.4s} %{color:reset} %{message}""
+level = "DEBUG"
+file="stdout"
+
+#############################
+## Profiling
+#############################
+
+[profile]
+## Turn on CPU/Mem profiling
+enabled=true
+
+##  there will be a http server set up to yank pprof data on :6060
+
+listen="0.0.0.0:6070"
+rate=100000
+block_profile=false # this is very expensive
+
+
+#############################
+## Internal Stats
+#############################
+
+[health]
+
+enabled=true
+
+## there will be an internal health http server set up as well
+## and will respond to '/ops/status' -> "GET OK"
+## '/stats' --> blob of json data (adding ?jsonp=xxx will return jsonp data)
+## '/' --> a little file that charts (poorly) the above stats
+listen="0.0.0.0:6072"
+
+## stats are "rendered" every 5 seconds, so this will keep last
+## `internal_health_server_points` in RAM (careful with how many you store)
+## (use the statsd emitter to store longer term stuff)
+points=500
+
+# https this server if desired
+# key="/tmp/server.key"
+# cert="/tmp/server.crt"
+
+
+
+#############################
+## Gossiper
+#############################
+[gossip]
+enabled=true
+mode="lan"
+port=9289
+seed="localhost:8889"
+
+
+#############################
+## SERVERS
+#############################
+[servers]
+
+#############################
+## Incoming server defaults
+
+[servers.default]
+stats_tick=false
+
+
+## cache keys/server pairs in an LRU mem cache for speed
+cache_items=1000000
+
+## Health Checking options
+### check every "X" seconds
+heartbeat_time_delay=60
+
+### Timeout for failed connections (in Seconds)
+heartbeat_time_timeout=1
+
+## if a server has failed "X" times it's out of the loop
+failed_heartbeat_count=3
+
+## If we detect a downed node,
+## `remove_node` -- we can REMOVE the node from the hashpool
+## `ignore` -- stop checking the node
+server_down_policy="ignore"
+
+## outgoing connections are pooled per outgoign server
+## this sets the number of pool connections
+## 10 seems to be a "good" number for us
+max_pool_connections=10
+
+## if using the `bufferedpool` this is the size in bytes to use for the buffer
+## (defaults to 512)
+pool_buffersize=1024
+
+## If using a UDP input, you may wish to set the buffer size for clients
+## default is 1Mb
+read_buffer_size=1048576
+max_buffer_size=104857600
+
+## number of workers to chew on the sending queue
+## adjust this based on the input load
+workers=16
+out_workers=32
+
+
+#############################
+## Incoming statsd-proxy consistent hasher
+
+[servers.statsd-proxy]
+
+listen="udp://0.0.0.0:8126"
+
+msg_type="statsd"
+hasher_algo="mmh3"
+hasher_elter="statsd"
+hasher_vnodes=100
+
+[[servers.statsd-proxy.servers]]
+
+servers=["tcp://localhost:8127", "tcp://localhost:8128"]
+
+#############################
+## Statsd itself
+[servers.statsd]
+
+listen="tcp://0.0.0.0:8128"
+
+msg_type="statsd"
+
+## need higher timeouts for tcp conns
+write_timeout=5000
+runner_timeout=5000
+pool_buffersize=16384
+
+#TCP buffers should be smaller as there are Many TCP conns
+read_buffer_size=32768
+max_buffer_size=819200
+
+# all things proxied to the graphite proxy below
+out_dev_null=true
+
+
+#############################
+## Incoming graphite-proxy consistent hasher for statsd elements
+
+[servers.graphite-proxy]
+
+listen="tcp://0.0.0.0:2005"
+
+msg_type="graphite"
+hasher_algo="mmh3"
+hasher_elter="graphite"
+hasher_vnodes=100
+
+## need higher timeouts for graphite
+write_timeout=5000
+runner_timeout=5000
+pool_buffersize=16384
+
+#TCP buffers should be smaller as there are Many TCP conns
+read_buffer_size=32768
+max_buffer_size=819200
+
+
+[[servers.graphite-proxy.servers]]
+
+servers=["tcp://localhost:2007", "tcp://localhost:2008"]
+
+
+#############################
+## Incoming graphite since this is a statsd only item, no
+## need to use a consistent hasher layer
+
+[servers.graphite]
+
+### Server sections .. note all the above is overridable in each section
+### (except the `statsd_*` and `internal_health_server_listen`)
+### NOTE: `hasher_replicas` will NOT use the defaults, be explict there
+
+## what port/scheme we are listening on for incoming data
+listen="tcp://0.0.0.0:2008"
+
+msg_type="graphite"
+
+## need higher timeouts for graphite
+write_timeout=5000
+runner_timeout=5000
+pool_buffersize=16384
+
+#TCP buffers should be smaller as there are Many TCP conns
+read_buffer_size=32768
+max_buffer_size=819200
+
+# we're doing the writing
+out_dev_null=true
+
+
+#############################
+## Incoming graphite-system-proxy consistent hasher
+
+[servers.graphite-system-proxy]
+
+listen="tcp://0.0.0.0:2103"
+
+msg_type="graphite"
+hasher_algo="mmh3"
+hasher_elter="graphite"
+hasher_vnodes=100
+
+## need higher timeouts for graphite
+write_timeout=5000
+runner_timeout=5000
+pool_buffersize=16384
+
+#TCP buffers should be smaller as there are Many TCP conns
+read_buffer_size=32768
+max_buffer_size=819200
+
+
+[[servers.graphite-system-proxy.servers]]
+
+servers=["tcp://localhost:2004", "tcp://localhost:2005"]
+
+
+#############################
+## System Graphite writer endpoint
+
+[servers.graphite-system]
+
+## what port/scheme we are listening on for incoming data
+listen="tcp://0.0.0.0:2005"
+
+msg_type="graphite"
+
+## need higher timeouts for graphite
+write_timeout=5000
+runner_timeout=5000
+pool_buffersize=16384
+
+#TCP buffers should be smaller as there are Many TCP conns
+read_buffer_size=32768
+max_buffer_size=819200
+
+# we're doing the writing
+out_dev_null=true

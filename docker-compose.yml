@@ -1,0 +1,168 @@
+version: '2'
+
+
+services:
+
+  cadent:
+    build:
+        context: .
+        dockerfile: docker/cadent.docker
+
+    ports:
+        - "0.0.0.0:2003:2003"
+
+  # this just puts the current land in a container and snoozes
+  # you probably will need to
+  # docker exec -ti $(docker ps | grep cadent-dev | cut -d" " -f1) bash
+  cadent-dev:
+    build:
+        context: .
+        dockerfile: docker/cadent.dev.docker
+
+    volumes:
+        - ./:/go/src
+        - $PWD/docker/data:/data
+
+    links:
+        - graphite
+    command: '/bin/bash -c "trap : TERM INT; sleep infinity & wait"'
+    ports:
+        - "0.0.0.0:2003:2003"
+
+  graphite:
+      build:
+          context: .
+          dockerfile: docker/graphite.docker
+      working_dir: /opt/graphite
+
+      environment:
+          CADENT_URL: http://cadent-dev:8083/graphite
+          GRAPHITE_STORAGE_DIR: /tmp/graphite/
+
+      ports:
+          - "0.0.0.0:8080:8080"
+
+      volumes:
+          - $PWD/docker/data:/data
+
+  grafana:
+    image:  grafana/grafana
+    ports:
+       - "0.0.0.0:3000:3000"
+
+  graphite-api:
+    build:
+        context: .
+        dockerfile: docker/graphite-api.docker
+
+    ports:
+        - "0.0.0.0:8881:8881"
+
+    environment:
+        CREDO_CADENT_CORS_HOSTS: "*"
+        CREDO_CADENT_HOSTS: "http://cadent:8083/graphite"
+
+
+  #####
+  ## External deps
+  #####
+
+  elasticsearch:
+    image: elasticsearch:latest
+    ports:
+        - "0.0.0.0:9200:9200"
+        - "9300:9300"
+    volumes:
+        - $PWD/docker/elasticsearch:/usr/share/elasticsearch/config
+        #- $PWD/docker/data/elasticsearch:/usr/share/elasticsearch/data
+
+  kibana:
+    image: kibana:latest
+    ports:
+        - "0.0.0.0:5601:5601"
+    links:
+        - elasticsearch
+
+  mysql:
+      image: mysql:5.6
+      ports:
+          - "0.0.0.0:3308:3306"  # diferent port as i've got a native mysql running
+      environment:
+        MYSQL_USER: "admin"
+        MYSQL_ROOT_PASSWORD: "password"
+        MYSQL_DATABASE: "cadent"
+      volumes:
+        - $PWD/docker/data/mysql:/var/lib/mysql
+
+
+  zookeeper:
+    image: wurstmeister/zookeeper
+    ports:
+      - "2181:2181"
+
+  kafka:
+    image: wurstmeister/kafka
+    ports:
+      - "0.0.0.0:9092:9092"
+    links:
+      - zookeeper:zk
+    environment:
+      KAFKA_CREATE_TOPICS: "cadent:8:1,cadent-commits:8:1,cadent-json:6:1,cadent-msgp:6:1,cadent-proto:6:1,cadent-test:6:1"
+      KAFKA_ADVERTISED_PORT: 9092
+      KAFKA_PORT: 9092
+      KAFKA_ADVERTISED_HOST_NAME: 0.0.0.0
+      KAFKA_ZOOKEEPER_CONNECT: "zookeeper:2181"
+      # log.retention.hours
+      KAFKA_LOG_RETENTION_HOURS: 1
+      #log.segment.bytes=1073741824
+      KAFKA_LOG_SEGMENT_BYTES: 1048576
+
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - $PWD/docker/data/kafka:/kafka
+
+  cassandra:
+    image: cassandra:3.0.15
+    ports:
+      - "0.0.0.0:9042:9042"
+      - "0.0.0.0:7199:7199"
+      - "0.0.0.0:9160:9160"
+    #volumes:
+      #- $PWD/docker/data/cassandra:/var/lib/cassandra
+
+  redis:
+    image: redis:latest
+    ports:
+      - "0.0.0.0:6379:6379"
+
+  redis-cl0:
+    image: redis:latest
+    ports:
+       - "0.0.0.0:7000:6379"
+
+  redis-cl1:
+    image: redis:latest
+    ports:
+       - "0.0.0.0:7001:6379"
+
+  opscenter:
+    image: abh1nav/opscenter:latest
+    links:
+      - cassandra
+    ports:
+      - "0.0.0.0:8888:8888"
+
+  zipkin:
+    image: openzipkin/zipkin:1.12.0
+    ports:
+      - "0.0.0.0:9411:9411"
+
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    ports:
+      - "0.0.0.0:5775:5775/udp"
+      - "0.0.0.0:6831:6831/udp"
+      - "0.0.0.0:6832:6832/udp"
+      - "0.0.0.0:5778:5778"
+      - "0.0.0.0:16686:16686"
+      - "0.0.0.0:14268:14268"

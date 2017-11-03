@@ -1,0 +1,93 @@
+/*
+Copyright 2014-2017 Bo Blanton
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+//go:generate protoc --proto_path=../../../../vendor/:./:../../../../../ cadent.proto --go_out=plugins=grpc:.
+
+
+/**
+ gRPC api definitions for the same API goodies
+**/
+
+
+syntax = "proto3";
+
+import "cadent/server/schemas/metrics/metrics.proto";
+import "cadent/server/schemas/repr/repr.proto";
+import "cadent/server/schemas/series/series.proto";
+import "cadent/server/schemas/indexer/indexer.proto";
+import "cadent/server/schemas/api/query.proto";
+
+option go_package = "pb";
+
+option java_multiple_files = true;
+option java_package = "com.theaddedones.cadent.rpc";
+option java_outer_classname = "CadentRPCProto";
+
+message ErrorResponse{
+    string message = 1;
+    int32 code = 2;
+}
+message NoResponse{}
+
+service CadentMetric {
+    // GetMetrics.
+    //
+    // Obtains Metrics from a metrics query.
+    //
+    rpc GetMetrics(api.MetricQuery) returns (stream metrics.RawRenderItem) {}
+
+    // GetMetricsInCache.
+    //
+    // Obtains Metrics from a metrics query, but only if the metrics are in local cache.
+    // Usefull for doing fanout queries where only one node may have the most recent data.
+    // If multiple hosts return values for the same metric, it is up to the client to merge the streams.
+    //
+    rpc GetMetricsInCache(api.MetricQuery) returns (stream metrics.RawRenderItem) {}
+
+    // Find.
+    //
+    // Find full Metrics from a indexer query.
+    //
+    rpc Find(api.IndexQuery) returns (stream indexer.MetricFindItem) {}
+
+    // FindInCache.
+    //
+    // Find full metrics items that are in the local RAM index
+    // Usefull for doing fanout queries where only one node may have the metric in the local ram index.
+    // If multiple hosts return values for the same metric, it is up to the client to merge the streams.
+    //
+    rpc FindInCache(api.IndexQuery) returns (stream indexer.MetricFindItem) {}
+
+    // List.
+    //
+    // return a big list of paths
+    //
+    rpc List(api.IndexQuery) returns (stream indexer.MetricFindItem) {}
+
+    // PutRawMetric.
+    //
+    // Write a raw metric into the metric writer. This is a direct writer, it does not consistently hash.
+    //
+    rpc PutRawMetric(series.RawMetric) returns (NoResponse) {}
+
+    // PutStatRepr.
+    //
+    // Write a stat repr metric into the metric writer. This is a direct writer, it does not consistently hash.
+    //
+    rpc PutStatRepr(repr.StatRepr) returns (NoResponse) {}
+
+}
+

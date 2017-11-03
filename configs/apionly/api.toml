@@ -1,0 +1,92 @@
+
+##
+### just the render API and nothing else
+##
+
+#############################
+## logging
+#############################
+[log]
+# format = ""%{color}%{time:2006-01-02 15:04:05.000} [%{module}] (%{shortfile}) ▶ %{level:.4s} %{color:reset} %{message}""
+level = "DEBUG"
+file="stdout"
+
+
+#############################
+## System things
+#############################
+[system]
+pid_file="/opt/cadent/api.pid"
+num_procs=4
+
+#############################
+## CPU profile
+#############################
+[profile]
+## Turn on CPU/Mem profiling
+##  there will be a http server set up to yank pprof data on :6065
+enabled=true
+listen="0.0.0.0:6065"
+rate=100000
+block_profile=false # this is very expensive
+
+#############################
+## Statsd
+#############################
+[statsd]
+server="127.0.0.1:8125"
+prefix="cadent"
+interval=1  # send to statd every second (buffered)
+
+# global statsd Sample Rates
+
+## It's HIGHLY recommended you at least put a statsd_timer_sample_rate as we measure
+## rates of very fast functions, and it can take _alot_ of CPU cycles just to do that
+## unless your server not under much stress 1% is a good number
+## `statsd_sample_rate` is for counters
+## `statsd_timer_sample_rate` is for timers
+timer_sample_rate=0.01
+sample_rate=0.1
+
+#############################
+## API
+#############################
+
+[api]
+base_path = "/graphite/"
+listen = "0.0.0.0:8086"
+
+## used to find the "writer" nodes as we'll need them to grab inflight/cached data
+## this will grab all the ones in the
+seed = "http://localhost:8083/graphite/info"
+
+    [api.discover]
+        driver = "zookeeper"
+        dsn = "127.0.0.1:2181"
+
+    [api.discover.options]
+        register = false  # since the api will be put in the mix of dis
+
+    [api.metrics]
+       driver = "cassandra-log-triggered"
+       dsn = "localhost"
+       [api.metrics.options]
+           port=9042
+           metrics_table="metric_series"
+           keyspace="metric"
+           path_table="path"
+           segment_table="segment"
+           writer_index=1
+           sniff=false
+
+
+       [api.indexer]
+           driver = "cassandra"
+           dsn = "localhost"
+           [api.indexer.options]
+               port=9042
+               metrics_table="metric_series"
+               keyspace="metric"
+               path_table="path"
+               segment_table="segment"
+               sniff=false

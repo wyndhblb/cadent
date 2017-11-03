@@ -1,0 +1,234 @@
+//go:generate  protoc --proto_path=../../../../cadent/vendor/:./:../../../../ --gogofaster_out=.  metrics.proto
+
+// XXX (boblanton) add the standard json names (my_json_name) to objects.pb.go
+// XXX (boblanton) add to the fields `msg:"in_cache"` to objects.pb.go
+
+// note that the "Point" structs have custome jsoners to deal w/ NAN/nil properly
+
+/*
+
+type DataPoint struct {
+	Time  uint32  `protobuf:"varint,1,opt,name=time,proto3" json:"time,omitempty" msg:"time"`
+	Value float64 `protobuf:"fixed64,2,opt,name=value,proto3" json:"value,omitempty" msg:"value"`
+}
+
+type DataPoints struct {
+	Points []*DataPoint `protobuf:"bytes,1,rep,name=points" json:"points,omitempty" msg:"points"`
+}
+
+
+// the basic metric json blob for find
+// easyjson:json
+type RenderItem struct {
+	Target     string       `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty" msg:"target"`
+	DataPoints []*DataPoint `protobuf:"bytes,2,rep,name=dataPoints,json=datapoints" json:"dataPoints,omitempty" msg:"dataPoints"`
+}
+
+
+// RenderItemList a list of RenderItemList for protobuf transports, msgpack, json handle
+// []*RenderItem just fine
+// easyjson:json
+type RenderItemList struct {
+	Items []*RenderItem `protobuf:"bytes,2,rep,name=items" json:"items,omitempty" msg:"items"`
+}
+
+type RawDataPoint struct {
+	Time  uint32  `protobuf:"varint,1,opt,name=time,proto3" json:"time,omitempty" msg:"time"`
+	Sum   float64 `protobuf:"fixed64,3,opt,name=sum,proto3" json:"sum,omitempty" msg:"sum"`
+	Min   float64 `protobuf:"fixed64,4,opt,name=min,proto3" json:"min,omitempty" msg:"min"`
+	Max   float64 `protobuf:"fixed64,5,opt,name=max,proto3" json:"max,omitempty" msg:"max"`
+	Last  float64 `protobuf:"fixed64,6,opt,name=last,proto3" json:"last,omitempty" msg:"last"`
+	Count int64   `protobuf:"varint,7,opt,name=count,proto3" json:"count,omitempty" msg:"count"`
+}
+
+// easyjson:json
+type RawRenderItem struct {
+	Metric     string          `protobuf:"bytes,1,opt,name=metric,proto3" json:"metric,omitempty"  msg:"metric"`
+	Id         string          `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"  msg:"id"`
+	RealStart  uint32          `protobuf:"varint,3,opt,name=realStart,json=real_start,proto3" json:"real_start,omitempty"   msg:"real_start"`
+	RealEnd    uint32          `protobuf:"varint,4,opt,name=realEnd,json=real_end,proto3" json:"real_end,omitempty"   msg:"real_end"`
+	Start      uint32          `protobuf:"varint,5,opt,name=start,proto3" json:"start,omitempty"   msg:"start"`
+	End        uint32          `protobuf:"varint,6,opt,name=end,proto3" json:"end,omitempty"   msg:"end"`
+	Step       uint32          `protobuf:"varint,7,opt,name=step,proto3" json:"step,omitempty"   msg:"step"`
+	AggFunc    uint32          `protobuf:"varint,8,opt,name=aggFunc,proto3" json:"agg_func,omitempty"   msg:"agg_func"`
+	Tags       []*repr.Tag     `protobuf:"bytes,9,rep,name=tags" json:"tags,omitempty"   msg:"tags"`
+	MetaTags   []*repr.Tag     `protobuf:"bytes,10,rep,name=meta_tags" json:"meta_tags,omitempty"   msg:"meta_tags"`
+	Data       []*RawDataPoint `protobuf:"bytes,11,rep,name=data" json:"data,omitempty"   msg:"data"`
+	InCache    bool            `protobuf:"varint,12,opt,name=inCache,json=in_cache,proto3" json:"in_cache,omitempty"   msg:"in_cache"`
+	UsingCache bool            `protobuf:"varint,13,opt,name=usingCache,json=using_cache,proto3" json:"using_cache,omitempty"   msg:"using_cache"`
+}
+
+// RawRenderItemList a list of RawRenderItems for protobuf transports, msgpack, json handel
+// []*RawRenderItem just fine
+// easyjson:json
+type RawRenderItemList struct {
+	Items []*RawRenderItem `protobuf:"bytes,1,rep,name=items" json:"items,omitempty" msg:"items"`
+}
+
+// easyjson:json
+type WhisperDataItem struct {
+	Target     string       `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"  msg:"target"`
+	InCache    bool         `protobuf:"varint,2,opt,name=in_cache,proto3" json:"in_cache,omitempty" msg:"in_cache"`
+	UsingCache bool         `protobuf:"varint,3,opt,name=using_cache,proto3" json:"using_cache,omitempty" msg:"using_cache"`
+	Uid        string       `protobuf:"bytes,4,opt,name=uid,proto3" json:"uid,omitempty" msg:"uid"`
+	Data       []*DataPoint `protobuf:"bytes,5,rep,name=data" json:"data,omitempty" msg:"data"`
+}
+
+type WhisperRenderItem struct {
+	RealStart uint32                      `protobuf:"varint,1,opt,name=real_start,proto3" json:"real_start,omitempty" msg:"real_start"`
+	RealEnd   uint32                      `protobuf:"varint,2,opt,name=real_end,proto3" json:"real_end,omitempty" msg:"real_end"`
+	Start     uint32                      `protobuf:"varint,3,opt,name=start,proto3" json:"start,omitempty" msg:"start"`
+	End       uint32                      `protobuf:"varint,4,opt,name=end,proto3" json:"end,omitempty" msg:"end"`
+	From      uint32                      `protobuf:"varint,5,opt,name=from,proto3" json:"from,omitempty" msg:"from"`
+	To        uint32                      `protobuf:"varint,6,opt,name=to,json=from,proto3" json:"to,omitempty" msg:"to"`
+	Step      uint32                      `protobuf:"varint,7,opt,name=step,proto3" json:"step,omitempty" msg:"step"`
+	Series    map[string]*WhisperDataItem `protobuf:"bytes,8,rep,name=series" json:"series,omitempty" msg:"series"  protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value"`
+}
+
+// WhisperDataItem a list of WhisperDataItem for protobuf transports, msgpack, json handel
+// []*WhisperDataItem just fine
+// easyjson:json
+type WhisperDataItemList struct {
+	Items []*WhisperDataItem `protobuf:"bytes,1,rep,name=items" json:"items,omitempty" msg:"items"`
+}
+
+// easyjson:json
+type GraphiteApiItem struct {
+	Target     string       `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty" msg:"target"`
+	InCache    bool         `protobuf:"varint,2,opt,name=in_cache,proto3" json:"in_cache,omitempty" msg:"in_cache"`
+	UsingCache bool         `protobuf:"varint,3,opt,name=using_cache,proto3" json:"using_cache,omitempty" msg:"using_cache"`
+	Datapoints []*DataPoint `protobuf:"bytes,4,rep,name=datapoints" json:"datapoints,omitempty" msg:"datapoints"`
+}
+
+// GraphiteApiItemList a list of GraphiteApiItem for protobuf transports, msgpack, json handel
+// []*GraphiteApiItem just fine
+// easyjson:json
+type GraphiteApiItemList struct {
+	Items []*GraphiteApiItem `protobuf:"bytes,1,rep,name=items" json:"items,omitempty" msg:"items"`
+}
+
+*/
+
+
+// also need to generate the msgpack from the rendered result
+//go:generate msgp -o metrics_msgp.go --file metrics.pb.go
+//go:generate msgp -o metrics_list_msgp.go --file metrics.go
+//go:generate easyjson metrics.pb.go
+//go:generate easyjson metrics.go
+
+syntax = 'proto3';
+
+package metrics;
+
+import "cadent/server/schemas/repr/repr.proto";
+import "github.com/gogo/protobuf/gogoproto/gogo.proto";
+
+option (gogoproto.goproto_getters_all) = false;
+option (gogoproto.benchgen_all) = true;
+option (gogoproto.unmarshaler_all) = true;
+option (gogoproto.marshaler_all) = true;
+option (gogoproto.sizer_all) = true;
+option (gogoproto.populate_all) = true;
+
+message DataPoint {
+	uint32 time = 1 [ json_name = "time" ];
+	double value = 2 [ json_name = "value" ];
+}
+
+message DataPoints {
+	repeated DataPoint points  = 1 [ json_name = "points" ];
+}
+
+message RawDataPoint {
+	uint32 time = 1 [ json_name = "time" ];
+	double sum = 3 [ json_name = "sum" ];
+	double min = 4 [ json_name = "min" ];
+	double max = 5 [ json_name = "max" ];
+	double last = 6 [ json_name = "last" ];
+	int64 count = 7 [ json_name = "count" ];
+}
+
+// the basic metric json blob for find
+//easyjson:json
+message RenderItem {
+	string  target = 1;
+	repeated DataPoint dataPoints = 2 [ json_name = "datapoints" ];
+}
+
+// RenderItemList a list of RenderItemList for protobuf transports, msgpack, json handle
+// []*RenderItem just fine
+//easyjson:json
+message RenderItemList {
+	repeated RenderItem items = 2 [ json_name = "items" ];
+}
+
+//easyjson:json
+message RawRenderItem{
+	string metric = 1;
+	string id = 2;
+	uint32 realStart = 3 [ json_name = "real_start" ];
+	uint32 realEnd = 4 [ json_name = "real_end" ];
+	uint32 start = 5;
+	uint32 end = 6;
+	uint32 step = 7;
+
+	uint32 aggFunc = 8;
+
+	repeated repr.Tag tags = 9;
+	repeated repr.Tag meta_tags = 10 [ json_name = "meta_tags" ];
+
+	repeated RawDataPoint data = 11;
+	bool inCache = 12 [ json_name = "in_cache" ];
+	bool usingCache = 13 [ json_name = "using_cache" ];
+}
+
+// RawRenderItemList a list of RawRenderItems for protobuf transports, msgpack, json handle
+// []*RawRenderItem just fine
+//easyjson:json
+message RawRenderItemList{
+	repeated RawRenderItem items = 1 [ json_name = "items" ];
+}
+
+
+//easyjson:json
+message WhisperDataItem {
+	string target = 1;
+	bool in_cache = 2 [ json_name = "in_cache" ];
+	bool using_cache = 3 [ json_name = "using_cache" ];
+	string uid = 4 [ json_name = "uid" ];
+	repeated DataPoint data = 5 [ json_name = "data" ];
+}
+
+// WhisperDataItem a list of WhisperDataItem for protobuf transports, msgpack, json handle
+// []*WhisperDataItem just fine
+//easyjson:json
+message WhisperDataItemList{
+	repeated WhisperDataItem items = 1 [ json_name = "items" ];
+}
+
+
+message WhisperRenderItem {
+	uint32 real_start = 1 [ json_name = "real_start" ];
+	uint32 real_end = 2 [ json_name = "real_end" ];
+	uint32 start = 3 [ json_name = "start" ];
+	uint32 end = 4 [ json_name = "end" ];
+	uint32 from = 5 [ json_name = "from" ];
+	uint32 to = 6 [ json_name = "from" ];
+	uint32 step = 7 [ json_name = "step" ];
+	map<string, WhisperDataItem> series = 8 [ json_name = "series" ];
+}
+
+//easyjson:json
+message GraphiteApiItem{
+	string target = 1 [ json_name = "target" ];
+	bool in_cache = 2 [ json_name = "in_cache" ];
+	bool using_cache = 3 [ json_name = "using_cache" ];
+	repeated DataPoint datapoints = 4 [ json_name = "datapoints" ];
+}
+
+// GraphiteApiItemList a list of GraphiteApiItem for protobuf transports, msgpack, json handle
+// []*GraphiteApiItem just fine
+//easyjson:json
+message GraphiteApiItemList{
+	repeated GraphiteApiItem items = 1 [ json_name = "items" ];
+}

@@ -1,0 +1,67 @@
+##
+##  Kafka-Flat ONLY writer
+##
+##  note the `backend = "BLACKHOLE"` below, this implys the Lines stop at the writer
+##  note also there is no "render" API here (unless you have another cadent process that is writing
+##  and you can hook things in here to take advantage of the cached series)
+##  There are 2 flush windows, 5s and 1m. That will be emitted once they hit 1024 bytes as the gorilla series format
+##
+##  cadent --config=graphite-config.toml --prereg=graphite-kafka-flat.toml
+##
+##
+
+
+[statsd-proxy-map]
+listen_server="statsd-proxy" # which listener to sit in front of  (must be in the main config)
+default_backend="graphite-proxy"  # failing a match go here
+
+    [statsd-proxy-map.accumulator]
+    backend = "graphite-proxy"  # farm to relay
+    input_format = "statsd"
+    output_format = "graphite"
+    accumulate_flush = "10s"
+    options = [
+            ["legacyNamespace", "true"],
+            ["prefixGauge", "gauges"],
+            ["prefixTimer", "timers"],
+            ["prefixSets", "sets"],
+            ["prefixCounter", ""],
+            ["globalPrefix", "stats"],
+            ["globalSuffix", ""],
+            ["percentThreshold", "0.90,0.95,0.99"]
+    ]
+
+[graphite-proxy-map]
+listen_server="graphite-proxy" # which listener to sit in front of  (must be in the main config)
+default_backend="graphite-proxy"  # failing a match go here
+
+    [graphite-proxy-map.accumulator]
+    backend = "BLACKHOLE"
+    input_format = "graphite"
+    output_format = "graphite"
+    random_ticker_start = false
+
+    # aggregate bin counts
+    accumulate_flush = "1s"
+    times = ["1s:24h"]
+
+    # cache objects to be shared (or not) across the writer backends
+    [[graphite-proxy-map.accumulator.writer.caches]]
+        name="gorilla"
+        series_encoding="gorilla"
+        bytes_per_metric=1024
+        max_metrics=1024000  # for 1 million points @ 1024 b you'll need lots o ram
+
+    [graphite-proxy-map.accumulator.writer.metrics]
+        driver = "kafka-flat"
+        dsn = "127.0.0.1:9092"
+        cache = "gorilla"
+        metric_topic="cadent"
+        index_topic="cadent"
+    [graphite-proxy-map.accumulator.writer.metrics.options]
+        encoding="msgpack"
+
+    [graphite-proxy-map.accumulator.writer.indexer]
+        driver = "noop"
+
+

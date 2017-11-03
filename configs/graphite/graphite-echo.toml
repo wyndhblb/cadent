@@ -1,0 +1,50 @@
+##
+##  ECHO ONLY writer
+##
+##  Dump json encoded bits to stdout/err/file
+##
+##  note the `backend = "BLACKHOLE"` below, this implies the Lines stop at the writer
+##
+##  cadent --config=graphite.toml --prereg=graphite-whisper.toml
+##
+
+[graphite-proxy-map]
+listen_server="graphite-proxy" # which listener to sit in front of  (must be in the main config)
+default_backend="graphite-proxy"  # failing a match go here
+
+    [graphite-proxy-map.accumulator]
+    backend = "BLACKHOLE"
+    input_format = "graphite"
+    output_format = "graphite"
+    accumulate_flush = "5s"
+    random_ticker_start = false
+
+    # aggregate bin counts
+    times = ["5s:1h"]
+
+    # not really used here but needed for config purposes
+     [[graphite-proxy-map.accumulator.writer.caches]]
+         name="gorilla"
+         series_encoding="gorilla"
+
+    # Echo writer
+    [graphite-proxy-map.accumulator.writer.metrics]
+        name="echo"
+        driver = "echo"
+        dsn = "/tmp/mets"  # stdout or stderr or path/to/file
+        cache = "gorilla" # not used
+
+        [graphite-proxy-map.accumulator.writer.metrics.options]
+            # tags = "file=me,host=this.is.my.host"
+            compress="zstd" # none, snappy, zstd, gzip
+
+    [graphite-proxy-map.accumulator.writer.indexer]
+        name="rammer"
+        driver="ram"
+
+
+
+    # Sub string type match
+    [[graphite-proxy-map.map]]
+        substring=".marvel"  # ignore elastic search marvel stuff
+        reject=true

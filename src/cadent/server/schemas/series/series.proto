@@ -1,0 +1,168 @@
+
+syntax = 'proto3';
+
+package series;
+
+import "github.com/gogo/protobuf/gogoproto/gogo.proto";
+import "cadent/server/schemas/repr/repr.proto";
+
+option (gogoproto.goproto_getters_all) = false;
+option (gogoproto.benchgen_all) = true;
+option (gogoproto.unmarshaler_all) = true;
+option (gogoproto.marshaler_all) = true;
+option (gogoproto.sizer_all) = true;
+option (gogoproto.populate_all) = true;
+
+
+message MetricType {
+	string type = 1;
+}
+
+// MetricName just the name + metadata
+message MetricName {
+	string metric = 1;
+	uint64 id = 2;
+	string uid = 3;
+	repeated repr.Tag tags = 13;
+	repeated repr.Tag meta_tags = 14;
+}
+
+// MetricValue just the value (time, data)
+message MetricValue {
+	int64 time = 1;
+	double min = 2;
+	double max = 3;
+	double last = 4;
+	double sum = 5;
+	int64 count = 6;
+}
+
+// SeriesMetric the metric + all the metadata as the series blob
+message SeriesMetric {
+	uint64 id = 2;
+	string uid = 3;
+	int64 time = 4;
+	string metric = 5;
+	string encoding = 6;
+	bytes data = 7;
+	uint32 resolution = 8;
+	uint32 ttl = 9;
+	repeated repr.Tag tags = 13;
+	repeated repr.Tag meta_tags = 14;
+	int64 sent_time = 15;
+}
+
+// metric with no metadata just the UID + time + data
+message UidMetric {
+	string uid = 1;
+	int64 time = 2;
+	double min = 3;
+	double max = 4;
+	double last = 5;
+	double sum = 6;
+	int64 count = 7;
+	int64 sent_time = 8;
+}
+
+// UidMetricList list of UidMetrics
+message UidMetricList {
+	repeated UidMetricList list = 1;
+}
+
+// SingleMetric the metric + all the metadata
+message SingleMetric {
+	uint64 id = 2;
+	string uid = 3;
+	int64 time = 4;
+	string metric = 5;
+	double min = 6;
+	double max = 7;
+	double last = 8;
+	double sum = 9;
+	int64 count =10;
+	uint32 resolution = 11;
+	uint32 ttl = 12;
+	repeated repr.Tag tags = 13;
+	repeated repr.Tag meta_tags = 14;
+	int64 sent_time = 15;
+}
+
+// SingleMetricList list of SingleMetrics
+message SingleMetricList {
+	repeated SingleMetric list = 1;
+}
+
+// UnProcessedMetric the data point + metadata but no "uid/ids"
+message UnProcessedMetric {
+	int64 time = 1;
+	string metric = 2;
+	double min = 3;
+	double max = 4;
+	double last = 5;
+	double sum = 6;
+	int64 count = 7;
+	repeated repr.Tag tags = 13;
+	repeated repr.Tag meta_tags = 14;
+	int64 sent_time = 15;
+}
+
+// UnProcessedMetricList list of UnProcessedMetrics
+message UnProcessedMetricList {
+	repeated UnProcessedMetric list = 1;
+}
+
+// RawMetric non-aggregated metric time+value+metadata
+message RawMetric {
+	int64 time = 1;
+	string metric = 2;
+	double value = 3;
+	repeated repr.Tag tags = 13;
+	repeated repr.Tag meta_tags = 14;
+	int64 sent_time = 15;
+}
+
+// RawMetricList list of RawMetrics
+message RawMetricList {
+	repeated RawMetric list = 1;
+}
+
+// MetricWritten this message is meant to be dropped into the bus once we acctually write a
+// series, such that on a recover/restart mode we stream all the events, create the series
+// then "drop" them if they've been marked as written
+// this make recovery much less prone to dropping metrics in the event of down times
+message MetricWritten {
+	uint64 id = 2;
+	string uid = 3;
+	string metric = 4;
+	int64 start_time = 5;
+	int64 end_time = 6;
+	int64 write_time = 7;
+	int64 offset = 8; // kafka (or other thingy) offset position
+	int32 partition = 9; // kafka (or other thingy) partition
+	string topic = 10; // kafka (or other thingy) topic
+	uint32 resolution = 11;
+	uint32 ttl = 12;
+	repeated repr.Tag tags = 13;
+	repeated repr.Tag meta_tags = 14;
+	int64 sent_time = 15;
+}
+
+// AnyMetric generic any of the about metrics, only ONE should ever be not nil
+message AnyMetric{
+	RawMetric raw = 1;
+	UnProcessedMetric unprocessed = 2;
+	SingleMetric single = 3;
+	SeriesMetric series = 4;
+	UidMetric uid_metric = 5;
+	MetricWritten written = 6;
+}
+
+// AnyMetricList list of anymetrics
+message AnyMetricList{
+	repeated RawMetric raw = 1;
+	repeated UnProcessedMetric unprocessed = 2;
+	repeated SingleMetric single = 3;
+	repeated SeriesMetric series = 4;
+	repeated UidMetric uid_metric = 5;
+	repeated MetricWritten written = 6;
+}

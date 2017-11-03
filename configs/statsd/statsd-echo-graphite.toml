@@ -1,0 +1,57 @@
+
+##
+## stats emiter
+##
+## it will emit the usual statsd metrics to the `graphite-relay` backend defined
+## in `statsd-config.toml`
+##
+##  cadent --config=statsd-echo-config.toml --prereg=statsd-echo-graphite.toml
+##
+
+
+[statsd-regex-map]
+listen_server="statsd" # which listener to sit in front of  (must be in the main config)
+default_backend="graphite"  # failing a match go here
+
+    [statsd-regex-map.accumulator]
+    backend = "graphite"
+    input_format = "statsd"
+    output_format = "graphite"
+    accumulate_flush = "5s"  # since this is going into a graphite ticking at 10s .. they should match
+    random_ticker_start = true  # typically want this to not overwhelm (for statsd)  writer backends with everybody flushing at the same time
+    options = [
+            ["legacyNamespace", "true"],
+            ["prefixGauge", "gauges"],
+            ["prefixTimer", "timers"],
+            ["prefixCounter", ""],  # legacy namespace
+            ["globalPrefix", "stats"],
+            ["globalSuffix", ""],
+            ["percentThreshold", "0.90,0.95,0.99"]
+    ]
+
+
+[graphite-echo]
+listen_server="graphite"
+default_backend="graphite"
+
+    # accumulator and
+    [graphite-echo.accumulator]
+    backend = "BLACKHOLE"  # loop back, the code will bypass the accumulator on the second pass
+    input_format = "graphite"
+    output_format = "graphite"
+    accumulate_flush = "5s"  # push out to writer aggregator collector and the backend every 5s
+
+    # aggregate bin counts
+    times = ["5s:168h", "1m:720h", "10m:21600h"]
+
+    [[graphite-echo.accumulator.writer.caches]]
+         name="gorilla"
+         series_encoding="gorilla"
+
+    [graphite-echo.accumulator.writer.metrics]
+        driver = "echo"
+        dsn = "stdout"
+        cache="gorilla"
+
+    [graphite-echo.accumulator.writer.indexer]
+        driver = "noop" ## noop indexer writes as we don't need them here

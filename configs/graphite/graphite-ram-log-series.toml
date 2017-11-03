@@ -1,0 +1,69 @@
+##
+##  Cassandra-Series ONLY writer
+##
+##  note the `backend = "BLACKHOLE"` below, this implys the Lines stop at the writer
+##
+##  cadent --config=graphite-config.toml --prereg=graphite-cassandra-series.toml
+##
+##
+
+[graphite-proxy-map]
+listen_server="graphite-proxy" # which listener to sit in front of  (must be in the main config)
+default_backend="graphite-proxy"  # failing a match go here
+
+    [graphite-proxy-map.accumulator]
+    backend = "BLACKHOLE"
+    input_format = "graphite"
+    output_format = "graphite"
+    random_ticker_start = false
+
+    # aggregate bin counts
+    accumulate_flush = "1s"
+    times = ["1s:24h"]
+
+    # cache objects to be shared (or not) across the writer backends
+    [[graphite-proxy-map.accumulator.writer.caches]]
+        name="gorilla"
+        series_encoding="gorilla"
+        max_metrics=1024000  # for 1 million points @ 1024 b you'll need lots o ram
+
+
+    # AND write things to the cassandra DB
+    # cassandra api, metrics writer and path indexer
+    [graphite-proxy-map.accumulator.writer.metrics]
+        name="ram-metrics"
+        driver = "ram-log"
+        dsn = "localhost"
+        cache="gorilla"
+        [graphite-proxy-map.accumulator.writer.metrics.options]
+            cache_time_window = 15 # time in min for the chunk windows
+            cache_num_chunks = 8 # number of chunks to be in ram
+
+    # need some indexer for RAM logs
+    #  see api.indexer section
+    [graphite-proxy-map.accumulator.writer.indexer]
+        name="level-indexer"
+        driver = "leveldb"
+        dsn = "/tmp/graphite/idx"
+
+    [graphite-proxy-map.accumulator.api]
+        base_path = "/graphite/"
+        listen = "0.0.0.0:8083"
+
+        # enable GZIP output compression:
+        # for large request rates (100-200TPS), gzip can cause ALOT of GC, the default is OFF
+        # if your volume is lowish you should enable this, probably should not enable if
+        # you are using msgpack/protobufs as the format for returns
+        enable_gzip = false
+
+        #  TLS the server if desired
+        # key="/path/to/server.key"
+        # cert="/path/to/server.crt"
+
+        use_metrics="ram-metrics"
+        use_indexer="level-indexer"
+
+    # Sub string type match
+    [[graphite-proxy-map.map]]
+        substring=".marvel"  # ignore elastic search marvel stuff
+        reject=true

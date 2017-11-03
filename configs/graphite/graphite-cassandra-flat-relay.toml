@@ -1,0 +1,91 @@
+##
+##  Cassandra-flat + Relay ONLY writer
+##
+##  This will both write to cassandra and relay the resulting accumulated metrics to another
+##  server set (`graphite-gg-relay`) which is defined in the `graphite-relay-config.toml` section
+##
+##  cadent --config=graphite-relay-config.toml --prereg=graphite-cassandra-flat.toml
+##
+##
+
+[graphite-cassandra]
+listen_server="graphite-proxy"
+default_backend="graphite-proxy"
+
+    # accumulator and
+    [graphite-cassandra.accumulator]
+
+    # loop back, the code will bypass the accumulator on the second pass relay lines to the relay AND write them
+    backend = "graphite-relay"
+
+    input_format = "graphite"
+    output_format = "graphite"
+
+    # push out to writer aggregator collector and the backend every 10s
+    # this should match the FIRST time in your times below
+    accumulate_flush = "10s"
+
+    # aggregate bin counts
+    times = ["10s:168h", "1m:720h", "10m:21600h"]
+
+    # cache objects to be shared (or not) across the writer backends
+    [[graphite-proxy-map.accumulator.writer.caches]]
+        name="gorilla"
+        series_encoding="gorilla"
+        bytes_per_metric=1024
+        max_metrics=1024000  # for 1 million points @ 1024 b you'll need lots o ram
+        # max_time_in_cache="2m" # force a cache flush for metrics in ram longer then this number
+        # broadcast_length="128" # buffer channel for pushed overflow writes
+        # overflow_method="drop" # if over bytes/maxmetrics for non-series writers, drop incoming
+        # for non-series metrics, the typical behavior is to flush the highest counts first,
+        # but that may mean lower counts never get written, this value "flips" the sorter at this % rate to
+        # force the "smaller" ones to get written more often
+        # low_fruit_rate= 0.25
+
+    [graphite-cassandra.accumulator.writer.metrics]
+        name="cass-metrics"
+        driver = "cassandra"
+        dsn = "127.0.0.1"
+        cache = "gorilla"
+        [graphite-cassandra.accumulator.writer.metrics.options]
+            user="cassandra"
+            pass="cassandra"
+            port=9042
+            numcons=50 # DB connection pool size
+            timeout="30s" # DB timeout
+            read_consistency="one"  # read consistency "one", "local_quorum" or "quorum"
+            write_consistency="one"  # write consistency "one", "local_quorum" or "quorum" :: REALLY USE "ONE" HERE
+            keyspace="metric"
+            metrics_table="metric"
+            path_table="path"
+            segment_table="segment"
+            cache_points_size = 100 # number of backin time points for the hot cache to carry
+            writes_per_second = 3000 # ratelimit writes to not kill the persiter
+            write_workers = 64 # number of write workers
+
+
+    [graphite-cassandra.accumulator.writer.indexer]
+        name="cass-indexer"
+        driver = "cassandra"
+        dsn = "127.0.0.1"
+
+            [graphite-cassandra.accumulator.writer.indexer.options]
+            # assign things written to by this node as the "master" writer
+            writer_index=1
+
+            local_index_dir="/tmp/cadent_index"
+            user="cassandra"
+            pass="cassandra"
+            numcons=50
+
+    [graphite-cassandra.accumulator.api]
+    base_path = "/graphite/"
+    listen = "0.0.0.0:8083"
+    use_metrics="cass-metrics"
+    use_indexer="cass-indexr"
+
+
+    [[graphite-cassandra.map]]
+    # Sub string type match
+        substring=".marvel"  # ignore elastic search marvel stuff
+        reject=true

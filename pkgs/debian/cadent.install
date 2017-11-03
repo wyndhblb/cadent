@@ -1,0 +1,4 @@
+../cadent	/opt/cadent/
+../echoserver /opt/cadent/
+../statblast /opt/cadent/
+../configs/* /opt/cadent/configs/
