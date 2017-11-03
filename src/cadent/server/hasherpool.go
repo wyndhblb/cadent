@@ -21,7 +21,7 @@ limitations under the License.
 package cadent
 
 import (
-	"consistent"
+	"github.com/wyndhblb/consistent"
 
 	"cadent/server/config"
 	"cadent/server/lrucache"

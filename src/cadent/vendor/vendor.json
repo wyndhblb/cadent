@@ -893,6 +893,12 @@
 			"revisionTime": "2016-07-22T20:24:49Z"
 		},
 		{
+			"checksumSHA1": "LNTaPUGaLqcbtdGNd1x+1MmMWtM=",
+			"path": "github.com/wyndhblb/consistent",
+			"revision": "6c63f934aa6e599d1c4dc2405469604ae08f653a",
+			"revisionTime": "2017-11-03T18:35:20Z"
+		},
+		{
 			"checksumSHA1": "j3o4DuhPXBbEoIhuJ1zyYBxqG90=",
 			"path": "github.com/wyndhblb/go-utils/parsetime",
 			"revision": "7cc704c440608d26279ffc39c3c5728ef8bf4d3a",
