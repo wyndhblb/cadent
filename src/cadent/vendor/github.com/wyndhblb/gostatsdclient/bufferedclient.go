@@ -1,11 +1,11 @@
-package statsd
+package gostatsdclient
 
 import (
 	"expvar"
 	"log"
 	"math/rand"
 	"os"
-	"statsd/event"
+	"github.com/wyndhblb/gostatsdclient/event"
 	"strings"
 	"time"
 )

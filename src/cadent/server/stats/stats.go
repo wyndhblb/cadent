@@ -18,7 +18,7 @@ limitations under the License.
 package stats
 
 import (
-	"statsd"
+	statsd "github.com/wyndhblb/gostatsdclient"
 	"strings"
 	"time"
 )

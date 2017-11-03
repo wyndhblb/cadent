@@ -17,7 +17,7 @@ limitations under the License.
 package cadent
 
 import (
-	"statsd"
+	statsd "github.com/wyndhblb/gostatsdclient"
 
 	"cadent/server/config"
 	"cadent/server/stats"

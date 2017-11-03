@@ -18,7 +18,7 @@ package config
 
 import (
 	"cadent/server/stats"
-	"statsd"
+	statsd "github.com/wyndhblb/gostatsdclient"
 	"strings"
 	"time"
 )

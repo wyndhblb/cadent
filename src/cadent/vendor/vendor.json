@@ -911,6 +911,18 @@
 			"revisionTime": "2017-03-29T00:42:50Z"
 		},
 		{
+			"checksumSHA1": "l/LHd80JGqW71hZUgePT7a/R3Yw=",
+			"path": "github.com/wyndhblb/gostatsdclient",
+			"revision": "27f5ed4bd200f23cf6dc6bce26462266f9078a5e",
+			"revisionTime": "2017-11-03T19:49:25Z"
+		},
+		{
+			"checksumSHA1": "O5H2jwWR5/G4wN1lgVMhs0xTX+4=",
+			"path": "github.com/wyndhblb/gostatsdclient/event",
+			"revision": "27f5ed4bd200f23cf6dc6bce26462266f9078a5e",
+			"revisionTime": "2017-11-03T19:49:25Z"
+		},
+		{
 			"checksumSHA1": "Y+HGqEkYM15ir+J93MEaHdyFy0c=",
 			"path": "golang.org/x/net/context",
 			"revision": "48359f4f600b3a2d5cf657458e3f940021631a56",

@@ -19,8 +19,8 @@ package stats
 
 import (
 	"fmt"
+	statsd "github.com/wyndhblb/gostatsdclient"
 	"runtime"
-	"statsd"
 	"time"
 )
 
