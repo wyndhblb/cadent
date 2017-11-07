@@ -118,22 +118,23 @@ Not everything can implement the APIs due to their nature. Below is a table of w
 
 ### Metrics
 
-| Driver   | /rawrender + /metrics | /cache*  | TagSupport |
+| Driver   | /rawrender + /metrics | /cache*  |
 |---|---|---|---|
-| cassandra-log | Yes  | Yes | No |
-| cassandra | Yes | Yes | No |
-| cassandra-flat | Yes  | n/a | No |
-| cassandra-flat-map | Yes  | n/a | No |
-| elasticsearch-flat | Yes  | No  |  Yes  |
-| elasticsearch-flat-map | Yes  | No  |  Yes  |
-| mysql | Yes  | Yes  |  Yes  |
-| mysql-flat | Yes  | n/a | Yes |
-| redis-flat-map | Yes  | n/a | No |
+| cassandra-log | Yes  | Yes | 
+| cassandra | Yes | Yes | 
+| cassandra-flat | Yes  | n/a |
+| cassandra-flat-map | Yes  | n/a | 
+| elasticsearch-flat | Yes  | No  |  
+| elasticsearch-flat-map | Yes  | No  | 
+| mysql | Yes  | Yes |
+| mysql-flat | Yes  | n/a | 
+| redis-flat-map | Yes  | n/a | 
 | kafka | n/a  | Yes | n/a |
-| kafka-flat | n/a  | n/a | n/a |
-| levelDB | No  | No | No |
-| file | n/a | n/a  | n/a |
-| whisper| yes | n/a | n/a |
+| kafka-flat | n/a  | n/a | 
+| levelDB | No  | No | 
+| file | n/a | n/a  |
+| whisper| yes | n/a | 
+| echo | n/a | n/a | 
 
 
 ### Index
@@ -146,6 +147,8 @@ Not everything can implement the APIs due to their nature. Below is a table of w
 | kafka | n/a  | n/a | n/a |
 | levelDB | Yes  | Yes | No |
 | whisper | yes | yes | n/a |
+| ram | yes | yes | No |
+| noop | n/a | n/a | n/a |
 
 
 `n/a` means it cannot/won't be implemented
@@ -154,6 +157,11 @@ Not everything can implement the APIs due to their nature. Below is a table of w
 
 `TagSupport` is forth coming, but it will basically add an extra Query param `tag=XXX` to things once the indexing has been hashed out
  It should also be able to follow the "prometheus" query model `?q=my_stat{name1=val, name2=val}`
+ 
+`flat` means metrics are stored as `time: value` pairs (in some form) rather then binary compressed forms
+ 
+`map` means metrics are stored in a `map` like data structure using timeslabs (https://github.com/wyndhblb/timeslab) formats as primary keys along with the metric ID
+
 
 
 ## Aggregation
