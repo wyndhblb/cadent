@@ -129,7 +129,7 @@ Not everything can implement the APIs due to their nature. Below is a table of w
 | elasticsearch-flat-map | Yes  | No  |  Yes  |
 | mysql | Yes  | Yes | Yes |
 | mysql-flat | Yes  | n/a | Yes |
-| redis-flat | Yes  | n/a | No |
+| redis-flat-map | Yes  | n/a | No |
 | kafka | n/a  | Yes | n/a |
 | kafka-flat | n/a  | n/a | n/a |
 | levelDB | No  | No | No |

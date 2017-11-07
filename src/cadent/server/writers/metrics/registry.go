@@ -101,7 +101,7 @@ func NewWriterMetrics(name string) (Metrics, error) {
 		return NewKafkaMetrics(), nil
 	case name == "kafka-flat":
 		return NewKafkaFlatMetrics(), nil
-	case name == "redis-flat":
+	case name == "redis-flat" || name == "redis-flat-map":
 		return NewRedisFlatMetrics(), nil
 	case name == "echo":
 		return NewEchoMetrics(), nil
