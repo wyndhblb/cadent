@@ -73,6 +73,55 @@ Enough chatter, dive into the sub documents.
  - [Dev and Test](./docs/dev.md) - Some handy notes when developing. 
 
 
+## Supported Backends
+
+
+
+## Table of implemented apis and writers
+
+Not everything can implement the APIs/Stoarge due to their database nature. 
+Below is a table of what drivers implement which endpoints
+
+### Metrics
+
+| Driver   | /rawrender + /metrics | /cache*  | TagSupport |
+|---|---|---|---|
+| cassandra-log | Yes  | Yes | No |
+| cassandra | Yes | Yes | No |
+| cassandra-flat | Yes  | n/a | No |
+| cassandra-flat-map | Yes  | n/a | No |
+| mysql | Yes  | Yes  |  Yes  |
+| elasticsearch-flat | Yes  | No  |  Yes  |
+| elasticsearch-flat-map | Yes  | No  |  Yes  |
+| mysql-flat | Yes  | n/a | No |
+| redis-flat | Yes  | n/a | No |
+| kafka | n/a  | Yes | n/a |
+| kafka-flat | n/a  | n/a | n/a |
+| levelDB | No  | No | No |
+| file | n/a | n/a  | n/a |
+| whisper| yes | n/a | n/a |
+
+
+### Index
+
+| Driver   |  /expand | /find  | TagSupport |
+|---|---|---|---|
+| cassandra | Yes | Yes | No |
+| mysql | Yes  | Yes  |  Yes (not good for ALOT of tags) |
+| elasticsearch | Yes  | Yes  |  Yes  |
+| kafka | n/a  | n/a | n/a |
+| levelDB | Yes  | Yes | No |
+| whisper | yes | yes | n/a |
+
+
+`n/a` means it cannot/won't be implemented
+
+`No` means it has not been implemented yet, but can
+
+`TagSupport` is forth coming, but it will basically add an extra Query param `tag=XXX` to things once the indexing has been hashed out
+ It should also be able to follow the "prometheus" query model `?q=my_stat{name1=val, name2=val}`
+
+
 Examples Configs
 ----------------
 

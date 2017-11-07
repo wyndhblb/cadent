@@ -123,9 +123,12 @@ Not everything can implement the APIs due to their nature. Below is a table of w
 | cassandra-log | Yes  | Yes | No |
 | cassandra | Yes | Yes | No |
 | cassandra-flat | Yes  | n/a | No |
+| cassandra-flat-map | Yes  | n/a | No |
 | mysql | Yes  | Yes  |  Yes  |
 | elasticsearch-flat | Yes  | No  |  Yes  |
+| elasticsearch-flat-map | Yes  | No  |  Yes  |
 | mysql-flat | Yes  | n/a | No |
+| redis-flat | Yes  | n/a | No |
 | kafka | n/a  | Yes | n/a |
 | kafka-flat | n/a  | n/a | n/a |
 | levelDB | No  | No | No |
@@ -149,7 +152,8 @@ Not everything can implement the APIs due to their nature. Below is a table of w
 
 `No` means it has not been implemented yet, but can
 
-`TagSupport` is forth comming, but it will basicall add an extra Query param `tag=XXX` to things once the indexing has been hashed out
+`TagSupport` is forth coming, but it will basically add an extra Query param `tag=XXX` to things once the indexing has been hashed out
+ It should also be able to follow the "prometheus" query model `?q=my_stat{name1=val, name2=val}`
 
 
 ## Aggregation
@@ -198,7 +202,7 @@ Since there can easily be some insanely bad queries (`name=* for instance`) All 
 
 For tags, we will use the OpenTSDB format which is of the form `metric_key{name=val, name=val, ...}`
 
-For the metrics 2.0 world, the `metric_key` is redendent and can be omitted and just use the tags.
+For the metrics 2.0 world, the `metric_key` is redundant and can be omitted and just use the tags.
 
 
 ## API Reader config
