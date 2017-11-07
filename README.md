@@ -90,7 +90,6 @@ Below is a table of what drivers implement which endpoints
 | cassandra | Yes | Yes | No |
 | cassandra-flat | Yes  | n/a | No |
 | cassandra-flat-map | Yes  | n/a | No |
-| mysql | Yes  | Yes  |  Yes  |
 | elasticsearch-flat | Yes  | No  |  Yes  |
 | elasticsearch-flat-map | Yes  | No  |  Yes  |
 | mysql | Yes  | Yes | Yes |

@@ -124,10 +124,9 @@ Not everything can implement the APIs due to their nature. Below is a table of w
 | cassandra | Yes | Yes | No |
 | cassandra-flat | Yes  | n/a | No |
 | cassandra-flat-map | Yes  | n/a | No |
-| mysql | Yes  | Yes  |  Yes  |
 | elasticsearch-flat | Yes  | No  |  Yes  |
 | elasticsearch-flat-map | Yes  | No  |  Yes  |
-| mysql | Yes  | Yes | Yes |
+| mysql | Yes  | Yes  |  Yes  |
 | mysql-flat | Yes  | n/a | Yes |
 | redis-flat-map | Yes  | n/a | No |
 | kafka | n/a  | Yes | n/a |
