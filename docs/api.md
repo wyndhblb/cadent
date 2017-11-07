@@ -119,7 +119,7 @@ Not everything can implement the APIs due to their nature. Below is a table of w
 ### Metrics
 
 | Driver   | /rawrender + /metrics | /cache*  |
-|---|---|---|---|
+|---|---|---|
 | cassandra-log | Yes  | Yes | 
 | cassandra | Yes | Yes | 
 | cassandra-flat | Yes  | n/a |

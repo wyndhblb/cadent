@@ -85,7 +85,7 @@ Below is a table of what drivers implement which endpoints
 ### Metrics
 
 | Driver   | /rawrender + /metrics | /cache*  |
-|---|---|---|---|
+|---|---|---|
 | cassandra-log | Yes  | Yes | 
 | cassandra | Yes | Yes | 
 | cassandra-flat | Yes  | n/a |
@@ -115,19 +115,6 @@ Below is a table of what drivers implement which endpoints
 | whisper | yes | yes | n/a |
 | ram | yes | yes | No |
 | noop | n/a | n/a | n/a |
-
-
-`n/a` means it cannot/won't be implemented
-
-`No` means it has not been implemented yet, but can
-
-`TagSupport` is forth coming, but it will basically add an extra Query param `tag=XXX` to things once the indexing has been hashed out
- It should also be able to follow the "prometheus" query model `?q=my_stat{name1=val, name2=val}`
- 
-`flat` means metrics are stored as `time: value` pairs (in some form) rather then binary compressed forms
- 
-`map` means metrics are stored in a `map` like data structure using timeslabs (https://github.com/wyndhblb/timeslab) formats as primary keys along with the metric ID
-
 
 Examples Configs
 ----------------
