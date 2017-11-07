@@ -24,6 +24,7 @@ It will also place the metrics on the the `expvar` golang debug stack `/debug/va
 
 
 
+
 ## use
 
 ```
@@ -80,3 +81,7 @@ func main(){
     statsd.Close() // flush and terminate 
 }
 ```
+
+### Note:
+
+Original based off of this was based off of http://github.com/quipo/statsd

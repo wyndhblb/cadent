@@ -34,6 +34,11 @@ type StatsdConfig struct {
 	StatsdTimerSampleRate float32 `toml:"timer_sample_rate" json:"timer_sample_rate,omitempty" yaml:"timer_sample_rate"`
 	NoIncludeHost         bool    `toml:"do_not_include_host" json:"do_not_include_host,omitempty" yaml:"do_not_include_host"`
 	UseShortHostname      bool    `toml:"use_short_hostname" json:"use_short_hostname,omitempty" yaml:"use_short_hostname"`
+
+	// RawBufferSize if > 0 rather then using the buffered client, which will compute timing stats and accumulated counts
+	// in the buffer this will simply just send things "raw statsd metrics"
+	// in the order received but inside a byte buffer capped by RawBufferSize
+	RawBufferSize int `toml:"raw_buffer_size" json:"raw_buffer_size,omitempty" yaml:"raw_buffer_size"`
 }
 
 //init a statsd client from our config object
@@ -68,8 +73,16 @@ func (cfg *StatsdConfig) Start() {
 	if cfg.UseShortHostname {
 		hostn = "short"
 	}
-	statsdclient := statsd.NewStatsdClient(cfg.StatsdServer, perf, hostn)
-	statsdclientslow := statsd.NewStatsdClient(cfg.StatsdServer, perf, hostn)
+
+	var statsdclient *statsd.StatsdClient
+	var statsdclientslow *statsd.StatsdClient
+	if cfg.RawBufferSize > 0 {
+		statsdclient = statsd.NewStatsdClientBuffered(cfg.StatsdServer, perf, hostn, cfg.RawBufferSize)
+		statsdclientslow = statsd.NewStatsdClientBuffered(cfg.StatsdServer, perf, hostn, cfg.RawBufferSize)
+	} else {
+		statsdclient = statsd.NewStatsdClient(cfg.StatsdServer, perf, hostn)
+		statsdclientslow = statsd.NewStatsdClient(cfg.StatsdServer, perf, hostn)
+	}
 
 	if cfg.StatsdTimerSampleRate > 0 {
 		statsdclient.TimerSampleRate = cfg.StatsdTimerSampleRate
@@ -77,26 +90,35 @@ func (cfg *StatsdConfig) Start() {
 	if cfg.StatsdSampleRate > 0 {
 		statsdclient.SampleRate = cfg.StatsdSampleRate
 	}
-	//statsdclient.CreateSocket()
-	//StatsdClient = statsdclient
-	//return StatsdClient
 
-	// the buffer client seems broken for some reason
 	if cfg.StatsdInterval > 0 {
 		interval = time.Second * time.Duration(cfg.StatsdInterval)
-	}
-	statsder := statsd.NewStatsdBuffer("fast", interval, statsdclient)
-	statsderslow := statsd.NewStatsdBuffer("slow", interval, statsdclientslow)
-	statsder.RetainKeys = true //retain statsd keys to keep emitting 0's
-	if cfg.StatsdTimerSampleRate > 0 {
-		statsder.TimerSampleRate = cfg.StatsdTimerSampleRate
-	}
-	if cfg.StatsdSampleRate > 0 {
-		statsder.SampleRate = cfg.StatsdSampleRate
+		statsdclient.FlushTick = interval
+		statsdclientslow.FlushTick = interval
 	}
 
-	stats.StatsdClient = statsder
-	stats.StatsdClientSlow = statsderslow // slow does not have sample rates enabled
+	// if no raw buffer use the internal timer generator
+	if cfg.RawBufferSize <= 0 {
+		// the buffer client seems broken for some reason
+		if cfg.StatsdInterval > 0 {
+			interval = time.Second * time.Duration(cfg.StatsdInterval)
+		}
+		statsder := statsd.NewStatsdBuffer("fast", interval, statsdclient)
+		statsderslow := statsd.NewStatsdBuffer("slow", interval, statsdclientslow)
+		statsder.RetainKeys = true //retain statsd keys to keep emitting 0's
+		if cfg.StatsdTimerSampleRate > 0 {
+			statsder.TimerSampleRate = cfg.StatsdTimerSampleRate
+		}
+		if cfg.StatsdSampleRate > 0 {
+			statsder.SampleRate = cfg.StatsdSampleRate
+		}
+		stats.StatsdClient = statsder
+		stats.StatsdClientSlow = statsderslow // slow does not have sample rates enabled
+
+	} else {
+		stats.StatsdClient = statsdclient
+		stats.StatsdClientSlow = statsdclientslow
+	}
 	log.Notice("Statsd Fast Client to %s, prefix %s, interval %d", cfg.StatsdServer, cfg.StatsdPrefix, cfg.StatsdInterval)
 	log.Notice("Statsd Slow Client to %s, prefix %s, interval %d", cfg.StatsdServer, cfg.StatsdPrefix, cfg.StatsdInterval)
 

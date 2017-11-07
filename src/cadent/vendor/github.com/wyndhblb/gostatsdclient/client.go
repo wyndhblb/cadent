@@ -39,8 +39,10 @@ type StatsdClient struct {
 	BufSize         int
 	buffer          []byte
 	bufLock         sync.RWMutex
-	flushTick       time.Duration
-	randChan	chan float32
+	FlushTick       time.Duration
+	randChan	    chan float32
+	stopChan        chan bool
+	stopDoneChan    chan bool
 }
 
 // NewStatsdClient - Factory
@@ -75,16 +77,22 @@ func NewStatsdClient(addr string, prefix string, prefhost string) *StatsdClient 
 		Logger:          log.New(os.Stdout, "[StatsdClient] ", log.Ldate|log.Ltime),
 		SampleRate:      1.0,
 		TimerSampleRate: 1.0,
-		flushTick:       time.Duration(time.Second),
+		FlushTick:       time.Duration(time.Second),
 		BufSize:         0,
 		randChan:        make(chan float32, 2056),
+		stopChan:        make(chan bool),
+		stopDoneChan:    make(chan bool),
 
 	}
+
+
+	// start the random generator buffer for speed sake
 	go sc.genRands()
 	return sc
 }
 
-// start the local random generator
+// start the local random generator in a buffered fashion which keeps a queue of
+// generated random values ... this keeps the rand.New from generating too much GC pressure
 func (sb *StatsdClient) genRands(){
 	nr := rand.New(rand.NewSource(time.Now().UnixNano()))
 	for{
@@ -93,7 +101,7 @@ func (sb *StatsdClient) genRands(){
 }
 
 // NewStatsdClientBuffered new client but only send once the buffer is full
-// of if the time (1 second) has expired
+// or if the time (1 second) has expired
 func NewStatsdClientBuffered(addr string, prefix string, prefhost string, bufSize int) *StatsdClient {
 	cli := NewStatsdClient(addr, prefix, prefhost)
 	if bufSize > 0 {
@@ -137,6 +145,10 @@ func (c *StatsdClient) CreateSocket() error {
 func (c *StatsdClient) Close() error {
 	if nil == c.conn {
 		return nil
+	}
+	if c.BufSize > 0{
+		close(c.stopChan)
+		<-c.stopDoneChan
 	}
 	return c.conn.Close()
 }
@@ -298,15 +310,27 @@ func (c *StatsdClient) send(stat string, format string, value interface{}) error
 }
 
 func (c *StatsdClient) periodicSend() {
-	tick := time.NewTicker(c.flushTick)
+	tick := time.NewTicker(c.FlushTick)
 	for {
-		<-tick.C
-		c.bufLock.Lock()
-		if len(c.buffer) > 0 {
-			c.sendBufferToSocket()
-			c.buffer = c.buffer[:0]
+		select {
+			case <-tick.C:
+				c.bufLock.Lock()
+				if len(c.buffer) > 0 {
+					c.sendBufferToSocket()
+					c.buffer = c.buffer[:0]
+				}
+				c.bufLock.Unlock()
+			case <-c.stopChan:
+				fmt.Printf("Stopping statsd client")
+				c.bufLock.Lock()
+				if len(c.buffer) > 0 {
+					c.sendBufferToSocket()
+					c.buffer = c.buffer[:0]
+				}
+				c.bufLock.Unlock()
+				close(c.stopDoneChan)
+				return // break out
 		}
-		c.bufLock.Unlock()
 	}
 }
 
