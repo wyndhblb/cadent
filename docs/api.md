@@ -118,7 +118,7 @@ Not everything can implement the APIs due to their nature. Below is a table of w
 
 ### Metrics
 
-| Driver   | /rawrender + /metrics | /cache*  |
+| Driver   | /rawrender + /metrics | /cache  |
 |---|---|---|
 | cassandra-log | Yes  | Yes | 
 | cassandra | Yes | Yes | 
@@ -162,6 +162,8 @@ Not everything can implement the APIs due to their nature. Below is a table of w
  
 `map` means metrics are stored in a `map` like data structure using timeslabs (https://github.com/wyndhblb/timeslab) formats as primary keys along with the metric ID
 
+`cache` caches are necessary for binary compressed formats to reside in RAM before writing.  Thus only those writers that use
+these formats have the ability to "query" the cache directly.
 
 
 ## Aggregation
