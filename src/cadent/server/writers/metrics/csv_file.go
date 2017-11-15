@@ -47,7 +47,6 @@ import (
 )
 
 var errNoFilePointer = errors.New("Cannot write point, no file pointer")
-var errFileReaderNotImplemented = errors.New("FILE READER NOT IMPLMENTED")
 
 /****************** Interfaces *********************/
 type CSVFileMetrics struct {

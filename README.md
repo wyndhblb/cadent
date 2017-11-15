@@ -75,60 +75,56 @@ Enough chatter, dive into the sub documents.
 
 ## Supported Backends
 
-
-
-## Table of implemented apis and writers
-
-Not everything can implement the APIs/Stoarge due to their database nature. 
+Not everything can implement the all storage options due to the nature of the various databases. 
 Below is a table of what drivers implement which endpoints
 
 ### Metrics
 
-| Driver   | /rawrender + /metrics | /cache  |
+| Driver   | Mode  |
+|---|---|
+| cassandra-log | flat + log + cache | 
+| cassandra | blob + cache | 
+| cassandra-flat | flat |
+| cassandra-flat-map | flat + map | 
+| elasticsearch-flat | flat  |  
+| elasticsearch-flat-map | flat + map  | 
+| mysql | blob  + cache |
+| mysql-flat | flat | 
+| redis-flat-map | flat + map | 
+| kafka | blob |
+| kafka-flat | flat | 
+| levelDB | flat + log + cache |
+| csv file | flat | 
+| whisper| flat | 
+| echo | n/a (flat to std(out/err) |
+
+
+### Indexers
+
+| Driver  |  Name  | Tags |
 |---|---|---|
-| cassandra-log | Yes  | Yes | 
-| cassandra | Yes | Yes | 
-| cassandra-flat | Yes  | n/a |
-| cassandra-flat-map | Yes  | n/a | 
-| elasticsearch-flat | Yes  | No  |  
-| elasticsearch-flat-map | Yes  | No  | 
-| mysql | Yes  | Yes |
-| mysql-flat | Yes  | n/a | 
-| redis-flat-map | Yes  | n/a | 
-| kafka | n/a  | Yes | n/a |
-| kafka-flat | n/a  | n/a | 
-| levelDB | No  | No | 
-| file | n/a | n/a  |
-| whisper| yes | n/a | 
-| echo | n/a | n/a | 
+| cassandra | Yes | Yes |
+| mysql | Yes  |  Yes (not good for ALOT of tags) |
+| elasticsearch | Yes  | Yes  |
+| kafka | Yes  | Yes |
+| levelDB | Yes  | No |
+| whisper | yes | n/a |
+| ram | Yes | No |
+| noop | n/a | n/a |
 
 
-### Index
+`n/a`: cannot/won't be implemented.
 
-| Driver   |  /expand | /find  | TagSupport |
-|---|---|---|---|
-| cassandra | Yes | Yes | No |
-| mysql | Yes  | Yes  |  Yes (not good for ALOT of tags) |
-| elasticsearch | Yes  | Yes  |  Yes  |
-| kafka | n/a  | n/a | n/a |
-| levelDB | Yes  | Yes | No |
-| whisper | yes | yes | n/a |
-| ram | yes | yes | No |
-| noop | n/a | n/a | n/a |
+`No`: has not been implemented yet, but can.
 
-
-`n/a` means it cannot/won't be implemented
-
-`No` means it has not been implemented yet, but can
-
-`TagSupport` is forth coming, but it will basically add an extra Query param `tag=XXX` to things once the indexing has been hashed out
- It should also be able to follow the "prometheus" query model `?q=my_stat{name1=val, name2=val}`
+`Tags` (beta): Adds an extra tag query param `tag=XXX`. It should also be able to follow the "prometheus" query model `?q=my_stat{name1=val, name2=val}`.
  
-`flat` means metrics are stored as `time: value` pairs (in some form) rather then binary compressed forms
+`flat`: metrics are stored as `(time, value)` pairs (in some form) per database row rather then binary compressed forms
  
-`map` means metrics are stored in a `map` like data structure using timeslabs (https://github.com/wyndhblb/timeslab) formats as primary keys along with the metric ID
+`map`: metrics are stored in a `map` structure (`{time: value, time:value, ...}`) 
+and time-slabs (https://github.com/wyndhblb/timeslab) for a given time window per database row
 
-`cache` caches are necessary for binary compressed formats to reside in RAM before writing.  Thus only those writers that use
+`cache`: caches are necessary for binary compressed formats to reside in RAM before writing.  Thus only those writers that use
 these formats have the ability to "query" the cache directly.
 
 
@@ -168,7 +164,7 @@ IOWait hell) that restarting (nicely) it is basically impossible.
 ### Both statsd+graphite at the same time
 
 Or wait, this is really just a test environment, or a dev env, where no one really would be woken up if the metrics
-stoped flowing (i.e. pinned to one instance).  So put the entire package on one machine.
+stopped flowing (i.e. pinned to one instance).  So put the entire package on one machine.
 
     cadent --config=configs/multi/statsd-graphite.toml --prereg=configs/multi/statsd-graphite-prereg.toml
 
