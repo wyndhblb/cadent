@@ -122,7 +122,11 @@ Below is a table of what drivers implement which endpoints
 `flat`: metrics are stored as `(time, value)` pairs (in some form) per database row rather then binary compressed forms
  
 `map`: metrics are stored in a `map` structure (`{time: value, time:value, ...}`) 
-and time-slabs (https://github.com/wyndhblb/timeslab) for a given time window per database row
+and time-slabs (https://github.com/wyndhblb/timeslab) for a given time window per database row (see https://github.com/wyndhblb/cadent/blob/master/docs/writers.md#map-storage)
+
+`log`: a technique which is helpful for crashes.  Each "time period" (default 10s) the entire cache buffer
+is written to a temp table.  On a crash this log is re-read into ram and writing resumes.  Kafka has made this obsolete, 
+but may be useful for non-kafka situations (see https://github.com/wyndhblb/cadent/blob/master/docs/writers.md#log).  
 
 `cache`: caches are necessary for binary compressed formats to reside in RAM before writing.  Thus only those writers that use
 these formats have the ability to "query" the cache directly.
