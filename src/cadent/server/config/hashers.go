@@ -32,6 +32,37 @@ import (
 	"time"
 )
 
+const (
+	// name of defaults section
+	DEFAULT_CONFIG_SECTION       = "default"
+	// name for a backend only server set
+	DEFAULT_BACKEND_ONLY         = "backend_only"
+	// default listen address
+	DEFAULT_LISTEN               = "tcp://127.0.0.1:6000"
+	// how many failed heartbeats to consider a hasher node down
+	DEFAULT_HEARTBEAT_COUNT      = uint64(3)
+	// default tick between health checks
+	DEFAULT_HEARTBEAT            = time.Duration(30)
+	// default timeout of health checks
+	DEFAULT_HEARTBEAT_TIMEOUT    = time.Duration(5)
+	// if a server is down, how to treat it
+	// "keep" = keep the hash ring the same, and basically fail to send (hopefully it comes back)
+	// "remove_node" = drop the node from the ring
+	DEFAULT_SERVERDOWN_POLICY    = "keep"
+	// default hash to compose the hashring
+	// see https://github.com/wyndhblb/consistent
+	DEFAULT_HASHER_ALGO          = "mmh3"
+	// default string manipulation to compose server strings for hash
+	// see https://github.com/wyndhblb/consistent
+	DEFAULT_HASHER_ELTER         = "simple"
+	// how may virtual nodes to compose the ring from
+	DEFAULT_HASHER_VNODES        = 4
+	// how many replicas to add to the ring
+	DEFAULT_DUPE_REPLICAS        = 1
+	// default number of connections in the outgoing network pool
+	DEFAULT_MAX_POOL_CONNECTIONS = 10
+)
+
 type ParsedServerConfig struct {
 	// the server name will default to the hashkey if none is given
 	ServerMap       map[string]*url.URL
@@ -124,21 +155,6 @@ func (c *HasherConfig) String() string {
 	return string(j)
 }
 
-const (
-	DEFAULT_CONFIG_SECTION       = "default"
-	DEFAULT_BACKEND_ONLY         = "backend_only"
-	DEFAULT_LISTEN               = "tcp://127.0.0.1:6000"
-	DEFAULT_HEARTBEAT_COUNT      = uint64(3)
-	DEFAULT_HEARTBEAT            = time.Duration(30)
-	DEFAULT_HEARTBEAT_TIMEOUT    = time.Duration(5)
-	DEFAULT_SERVERDOWN_POLICY    = "keep"
-	DEFAULT_HASHER_ALGO          = "mmh3"
-	DEFAULT_HASHER_ELTER         = "simple"
-	DEFAULT_HASHER_VNODES        = 4
-	DEFAULT_DUPE_REPLICAS        = 1
-	DEFAULT_MAX_POOL_CONNECTIONS = 10
-)
-
 // full const hash config
 type HasherServers map[string]*HasherConfig
 
@@ -192,10 +208,10 @@ func (self *HasherConfig) parseServerList(servers []string, checkservers []strin
 			continue
 		}
 
-		check_line := strings.Trim(checkservers[idx], " \t\n")
-		hashkey_line := hashkeys[idx] // leave this "as is"
+		checkLine := strings.Trim(checkservers[idx], " \t\n")
+		hashkeyLine := hashkeys[idx] // leave this "as is"
 
-		parsed.HashkeyList = append(parsed.HashkeyList, hashkey_line)
+		parsed.HashkeyList = append(parsed.HashkeyList, hashkeyLine)
 		parsed.ServerList = append(parsed.ServerList, line)
 		server_url, err := url.Parse(line)
 		if err != nil {
@@ -209,22 +225,22 @@ func (self *HasherConfig) parseServerList(servers []string, checkservers []strin
 
 		parsed.ServerMap[line] = server_url
 
-		if _, ok := parsed.HashkeyToServer[hashkey_line]; ok {
+		if _, ok := parsed.HashkeyToServer[hashkeyLine]; ok {
 			return nil, fmt.Errorf("Hashkeys need to be unique")
 		}
 
-		parsed.HashkeyToServer[hashkey_line] = line
+		parsed.HashkeyToServer[hashkeyLine] = line
 
 		//parse up the check URLs
-		parsed.CheckList = append(parsed.CheckList, check_line)
+		parsed.CheckList = append(parsed.CheckList, checkLine)
 
-		check_url, err := url.Parse(check_line)
+		check_url, err := url.Parse(checkLine)
 
 		if err != nil {
 			return nil, err
 		}
 		parsed.CheckUrls = append(parsed.CheckUrls, check_url)
-		parsed.CheckMap[check_line] = check_url
+		parsed.CheckMap[checkLine] = check_url
 	}
 	return parsed, nil
 }
