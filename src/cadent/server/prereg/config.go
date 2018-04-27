@@ -246,7 +246,7 @@ func parseConfFile(fname string) (cfg ListofConfigMaps, err error) {
 		}
 		// replace any $ENV{MY_ENV_VAR:defaultvalue}
 		replBytes := envreplace.ReplaceEnv(yamlFile)
-		err = yaml.Unmarshal(replBytes, cfg)
+		err = yaml.Unmarshal(replBytes, &cfg)
 
 		if err != nil {
 			log.Critical("yaml parse error: err %v ", err)
@@ -261,14 +261,14 @@ func parseConfFile(fname string) (cfg ListofConfigMaps, err error) {
 		}
 		// replace any $ENV{MY_ENV_VAR:defaultvalue}
 		replBytes := envreplace.ReplaceEnv(jsonFile)
-		err = json.Unmarshal(replBytes, cfg)
+		err = json.Unmarshal(replBytes, &cfg)
 		if err != nil {
 			log.Critical("json parse error: err %v ", err)
 			return nil, err
 		}
 		return cfg, nil
 	default:
-		_, err = tomlenv.DecodeFile(fname, cfg)
+		_, err = tomlenv.DecodeFile(fname, &cfg)
 		return cfg, err
 	}
 }

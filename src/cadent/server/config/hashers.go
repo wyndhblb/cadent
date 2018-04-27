@@ -34,31 +34,31 @@ import (
 
 const (
 	// name of defaults section
-	DEFAULT_CONFIG_SECTION       = "default"
+	DEFAULT_CONFIG_SECTION = "default"
 	// name for a backend only server set
-	DEFAULT_BACKEND_ONLY         = "backend_only"
+	DEFAULT_BACKEND_ONLY = "backend_only"
 	// default listen address
-	DEFAULT_LISTEN               = "tcp://127.0.0.1:6000"
+	DEFAULT_LISTEN = "tcp://127.0.0.1:6000"
 	// how many failed heartbeats to consider a hasher node down
-	DEFAULT_HEARTBEAT_COUNT      = uint64(3)
+	DEFAULT_HEARTBEAT_COUNT = uint64(3)
 	// default tick between health checks
-	DEFAULT_HEARTBEAT            = time.Duration(30)
+	DEFAULT_HEARTBEAT = time.Duration(30)
 	// default timeout of health checks
-	DEFAULT_HEARTBEAT_TIMEOUT    = time.Duration(5)
+	DEFAULT_HEARTBEAT_TIMEOUT = time.Duration(5)
 	// if a server is down, how to treat it
 	// "keep" = keep the hash ring the same, and basically fail to send (hopefully it comes back)
 	// "remove_node" = drop the node from the ring
-	DEFAULT_SERVERDOWN_POLICY    = "keep"
+	DEFAULT_SERVERDOWN_POLICY = "keep"
 	// default hash to compose the hashring
 	// see https://github.com/wyndhblb/consistent
-	DEFAULT_HASHER_ALGO          = "mmh3"
+	DEFAULT_HASHER_ALGO = "mmh3"
 	// default string manipulation to compose server strings for hash
 	// see https://github.com/wyndhblb/consistent
-	DEFAULT_HASHER_ELTER         = "simple"
+	DEFAULT_HASHER_ELTER = "simple"
 	// how may virtual nodes to compose the ring from
-	DEFAULT_HASHER_VNODES        = 4
+	DEFAULT_HASHER_VNODES = 4
 	// how many replicas to add to the ring
-	DEFAULT_DUPE_REPLICAS        = 1
+	DEFAULT_DUPE_REPLICAS = 1
 	// default number of connections in the outgoing network pool
 	DEFAULT_MAX_POOL_CONNECTIONS = 10
 )

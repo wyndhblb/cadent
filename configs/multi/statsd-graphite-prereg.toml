@@ -89,4 +89,4 @@ default_backend="graphite-proxy"
      # cert="/path/to/server.crt"
 
     use_metrics="whis-metrics"
-    use_indexr="whis-indexer"
+    use_indexer="whis-indexer"

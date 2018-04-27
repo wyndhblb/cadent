@@ -80,6 +80,10 @@ func NewRamIndexer() *RamIndexer {
 
 func (r *RamIndexer) ConfigRam(conf *options.Options) (err error) {
 	r.MetricIndex, err = NewMetricIndex(conf.String("local_index_dir", ""))
+	r.cache, err = getCacherSingleton(r.indexerId)
+	if err != nil {
+		return err
+	}
 	return err
 }
 

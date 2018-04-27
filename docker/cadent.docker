@@ -1,6 +1,6 @@
 # golang env
 
-FROM ubuntu:16.04
+FROM ubuntu:16.04 as int
 
 MAINTAINER Bo Blanton <bo.blanton@gmail.com>
 
@@ -18,10 +18,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 		curl ca-certificates \
 	&& rm -rf /var/lib/apt/lists/*
 
-ENV GOLANG_VERSION 1.9.2
+ENV GOLANG_VERSION 1.10.1
 
-ENV GOLANG_DOWNLOAD_URL https://redirector.gvt1.com/edgedl/go/go1.9.2.linux-amd64.tar.gz
-ENV GOLANG_DOWNLOAD_SHA256 de874549d9a8d8d8062be05808509c09a88a248e77ec14eb77453530829ac02b
+ENV GOLANG_DOWNLOAD_URL https://dl.google.com/go/go1.10.1.linux-amd64.tar.gz
+ENV GOLANG_DOWNLOAD_SHA256 72d820dec546752e5a8303b33b009079c15c2390ce76d67cf514991646c6127b
 
 RUN curl -fsSL "$GOLANG_DOWNLOAD_URL" -o golang.tar.gz \
 	&& echo "$GOLANG_DOWNLOAD_SHA256  golang.tar.gz" | sha256sum -c - \
@@ -35,18 +35,25 @@ RUN mkdir -p "$GOPATH/src" "$GOPATH/bin" && chmod -R 777 "$GOPATH"
 WORKDIR $GOPATH
 
 ADD ./src /go/src
-# ADD ./.git /go/.git
+ADD ./.git /go/.git
 ADD Makefile /go/Makefile
 ADD version /go/version
 
 RUN make
 
-# remove things that are no longer needed
-# RUN rm -rf /go/.git
-RUN rm -rf /go/pkg /go/bin
-RUN rm -rf /usr/local/go
-RUN apt-get -y purge g++ gcc git make curl
-RUN apt -y autoremove
-RUN apt-get clean
+RUN ls -ltraF
+RUN pwd
+
+FROM ubuntu:16.04
+
+ENV PATH /cadent:$PATH
+
+RUN mkdir -p /cadent
+COPY --from=int /go/cadent /cadent/cadent
+COPY --from=int /go/echoserver /cadent/echoserver
+COPY --from=int /go/statblast /cadent/statblast
+COPY --from=int /go/readblast /cadent/readblast
+
+ADD ./ /cadent/configs
 
 
