@@ -150,6 +150,15 @@ func (ws *WhisperIndexer) Find(ctx context.Context, metric string, tags repr.Sor
 		return mt, err
 	}
 
+	// try a direct match if nothing found
+	if len(paths) == 0 {
+		paths, err = filepath.Glob(globPath + ".wsp")
+	}
+
+	if err != nil {
+		return mt, err
+	}
+
 	// a little special case for "exact" data metric matches
 	// i.e. servers.all-1-stats-infra-integ.iostat.xvdg.writes
 	// will match servers.all-1-stats-infra-integ.iostat.xvdg.writes and
@@ -174,7 +183,7 @@ func (ws *WhisperIndexer) Find(ctx context.Context, metric string, tags repr.Sor
 
 		ms.Text = spl[len(spl)-1]
 
-		ms.Id = p   // ID is whatever we want
+		ms.Id = t   // ID is whatever we want
 		ms.Path = t // "path" is what our interface expects to be the "moo.goo.blaa" thing
 
 		stat_name := repr.StatName{Key: p}

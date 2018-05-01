@@ -750,6 +750,7 @@ func (ws *WhisperMetrics) RawRender(ctx context.Context, path string, from int64
 	for _, pth := range paths {
 		mets, err := ws.indexer.Find(ctx, pth, tags)
 		if err != nil {
+			ws.log.Error("error in find: %v", err)
 			continue
 		}
 		metrics = append(metrics, mets...)
